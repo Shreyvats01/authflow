@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "index",
+    "core-concepts",
+    "adapters",
+    "nextjs-integration",
+    "react-hooks",
+    "cli",
+    "examples"
+  ]
+}

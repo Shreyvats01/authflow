@@ -1,0 +1,98 @@
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+
+interface AuthContextValue {
+  isLoaded: boolean;
+  isSignedIn: boolean;
+  userId: string | null;
+  sessionId: string | null;
+  user: any | null; // Replace with proper type later
+  session: any | null;
+  reload: () => Promise<void>;
+  config?: { baseURL?: string };
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export interface AuthFlowProviderProps {
+  children: ReactNode;
+  config?: {
+    baseURL?: string;
+  };
+}
+
+export const AuthFlowProvider = ({ children, config }: AuthFlowProviderProps) => {
+  const baseURL = config?.baseURL ?? '/api/auth';
+  const [state, setState] = useState({
+    isLoaded: false,
+    isSignedIn: false,
+    userId: null,
+    sessionId: null,
+    user: null,
+    session: null,
+  });
+
+  const fetchSession = async () => {
+    try {
+      const res = await fetch(`${baseURL}/session`);
+      if (res.ok) {
+        const data = await res.json();
+        setState({
+          isLoaded: true,
+          isSignedIn: !!data.user,
+          userId: data.user?.id || null,
+          sessionId: data.session?.id || null,
+          user: data.user || null,
+          session: data.session || null,
+        });
+      } else {
+        setState({
+          isLoaded: true,
+          isSignedIn: false,
+          userId: null,
+          sessionId: null,
+          user: null,
+          session: null,
+        });
+      }
+    } catch (e) {
+      setState({
+        isLoaded: true,
+        isSignedIn: false,
+        userId: null,
+        sessionId: null,
+        user: null,
+        session: null,
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchSession();
+
+    // Cross-tab synchronization
+    const channel = new BroadcastChannel('authflow_sync');
+    channel.onmessage = (event) => {
+      if (event.data === 'sync_session') {
+        fetchSession();
+      }
+    };
+
+    return () => {
+      channel.close();
+    };
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ ...state, reload: fetchSession, config }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuthContext = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuthContext must be used within an AuthFlowProvider');
+  }
+  return context;
+};

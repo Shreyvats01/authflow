@@ -1,0 +1,130 @@
+---
+title: Database Adapters
+description: Official ORM adapters for Drizzle and Prisma, with database schemas.
+---
+
+# Database Adapters
+
+AuthFlow uses a pluggable adapter pattern. You can use official Drizzle or Prisma adapters or write your own custom adapter implementing `AuthFlowAdapter`.
+
+---
+
+## 🌧️ Drizzle ORM Adapter
+
+### Installation
+
+```bash
+pnpm add @authflow/adapter-drizzle drizzle-orm
+```
+
+### Schema Setup (`db/schema.ts`)
+
+Import pre-built table schemas directly from `@authflow/adapter-drizzle`:
+
+```ts
+export {
+  authUsers,
+  authAccounts,
+  authSessions,
+  authVerificationTokens,
+  authUserMetadata,
+} from "@authflow/adapter-drizzle";
+```
+
+### Adapter Initialization
+
+```ts
+import { createDrizzleAdapter } from "@authflow/adapter-drizzle";
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "./db/schema";
+
+export const db = drizzle(process.env.DATABASE_URL!, { schema });
+export const adapter = createDrizzleAdapter(db);
+```
+
+---
+
+## ◭ Prisma Adapter
+
+### Installation
+
+```bash
+pnpm add @authflow/adapter-prisma @prisma/client
+pnpm add -D prisma
+```
+
+### Schema Setup (`prisma/schema.prisma`)
+
+Add the following models to your `schema.prisma`:
+
+```prisma
+model AuthUser {
+  id            String            @id @default(uuid())
+  name          String?
+  email         String            @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  sessions      AuthSession[]
+  accounts      AuthAccount[]
+  metadata      AuthUserMetadata[]
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthAccount {
+  id                String   @id @default(uuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model AuthVerificationToken {
+  identifier String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([identifier, token])
+}
+
+model AuthUserMetadata {
+  id        String   @id @default(uuid())
+  userId    String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}
+```
+
+### Adapter Initialization
+
+```ts
+import { createPrismaAdapter } from "@authflow/adapter-prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+export const adapter = createPrismaAdapter(prisma);
+```

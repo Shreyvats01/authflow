@@ -1,0 +1,29 @@
+{
+  "name": "@authflow/adapter-prisma",
+  "version": "0.1.0",
+  "description": "Prisma ORM adapter for AuthFlow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shrey/clerk"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@authflow/core": "workspace:*",
+    "@prisma/client": "^5.10.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.10.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.3"
+  }
+}

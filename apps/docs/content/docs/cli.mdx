@@ -1,0 +1,55 @@
+---
+title: CLI Reference
+description: Scaffolding, configuration generation, and schema helpers with @authflow/cli.
+---
+
+# CLI Reference
+
+The `@authflow/cli` tool automates project initialization, database schema generation, and environment setup.
+
+---
+
+## 🚀 Commands
+
+### `authflow init`
+
+Interactive setup wizard to initialize AuthFlow in an existing project.
+
+```bash
+npx @authflow/cli init
+```
+
+**What it does**:
+1. Prompts for database ORM (Drizzle vs Prisma).
+2. Asks which authentication features to enable (Passwords, Magic Links, OAuth).
+3. Prompts whether to enable onboarding flow redirect logic.
+4. Generates a fully-configured `lib/auth.ts` file tailored to your project setup.
+5. Automatically installs `@authflow/core` and matching database adapter packages using your active package manager (pnpm, npm, yarn, bun).
+
+---
+
+### `authflow add [adapter]`
+
+Scaffold database schema files for your chosen ORM:
+
+```bash
+# Generate Drizzle table definitions at db/schema.ts
+npx @authflow/cli add drizzle
+
+# Append Prisma AuthFlow models to prisma/schema.prisma
+npx @authflow/cli add prisma
+```
+
+---
+
+### `authflow generate [target]`
+
+Generate environment templates or TypeScript declarations:
+
+```bash
+# Scaffolds .env.example with required environment variables
+npx @authflow/cli generate env
+
+# Generates custom TypeScript declarations at types/authflow.d.ts
+npx @authflow/cli generate types
+```
