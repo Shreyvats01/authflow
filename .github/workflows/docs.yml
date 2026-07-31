@@ -27,7 +27,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
-      - run: pnpm --filter @authflow/core build
+      - run: pnpm --filter @bolkauth/core build
       - run: pnpm --filter docs build
         env:
           NEXT_TELEMETRY_DISABLED: 1
