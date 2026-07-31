@@ -21,9 +21,16 @@ export default async function Page({ params }: { params: { slug?: string[] } }) 
 }
 
 export async function generateStaticParams() {
-  return source.getPages().map((page) => ({
+  const pages = source.getPages();
+  const params = pages.map((page) => ({
     slug: page.slugs,
   }));
+
+  if (!params.some((p) => !p.slug || p.slug.length === 0)) {
+    params.push({ slug: [] });
+  }
+
+  return params;
 }
 
 export async function generateMetadata({ params }: { params: { slug?: string[] } }) {
