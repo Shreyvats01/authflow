@@ -1,12 +1,12 @@
 import { eq, and } from "drizzle-orm";
 import type {
-  AuthFlowAdapter,
+  BolkAuthAdapter,
   User,
   Session,
   Account,
   VerificationToken,
   UserMetadata,
-} from "@authflow/core";
+} from "@bolkauth/core";
 import {
   authUsers,
   authAccounts,
@@ -20,7 +20,7 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function createDrizzleAdapter(db: any): AuthFlowAdapter {
+export function createDrizzleAdapter(db: any): BolkAuthAdapter {
   return {
     async createUser(data): Promise<User> {
       const id = randomUUID();

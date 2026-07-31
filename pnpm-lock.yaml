@@ -93,21 +93,21 @@ importers:
 
   apps/playground:
     dependencies:
-      '@authflow/adapter-drizzle':
-        specifier: workspace:*
-        version: link:../../packages/adapter-drizzle
-      '@authflow/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@authflow/nextjs':
-        specifier: workspace:*
-        version: link:../../packages/nextjs
-      '@authflow/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@bolkauth/adapter-drizzle':
+        specifier: workspace:*
+        version: link:../../packages/adapter-drizzle
+      '@bolkauth/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@bolkauth/nextjs':
+        specifier: workspace:*
+        version: link:../../packages/nextjs
+      '@bolkauth/react':
+        specifier: workspace:*
+        version: link:../../packages/react
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -163,7 +163,7 @@ importers:
 
   packages/adapter-drizzle:
     dependencies:
-      '@authflow/core':
+      '@bolkauth/core':
         specifier: workspace:*
         version: link:../core
       drizzle-orm:
@@ -179,7 +179,7 @@ importers:
 
   packages/adapter-prisma:
     dependencies:
-      '@authflow/core':
+      '@bolkauth/core':
         specifier: workspace:*
         version: link:../core
       '@prisma/client':
@@ -198,7 +198,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@authflow/core':
+      '@bolkauth/core':
         specifier: workspace:*
         version: link:../core
       '@clack/prompts':
@@ -241,10 +241,10 @@ importers:
 
   packages/nextjs:
     dependencies:
-      '@authflow/core':
+      '@bolkauth/core':
         specifier: workspace:*
         version: link:../core
-      '@authflow/react':
+      '@bolkauth/react':
         specifier: workspace:*
         version: link:../react
       next:
@@ -266,7 +266,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@authflow/core':
+      '@bolkauth/core':
         specifier: workspace:*
         version: link:../core
       react:

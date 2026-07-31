@@ -7,7 +7,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 
-export const authUsers = pgTable("authflow_users", {
+export const authUsers = pgTable("bolkauth_users", {
   id: text("id").primaryKey().notNull(),
   name: text("name"),
   email: text("email").notNull().unique(),
@@ -17,7 +17,7 @@ export const authUsers = pgTable("authflow_users", {
 });
 
 export const authAccounts = pgTable(
-  "authflow_accounts",
+  "bolkauth_accounts",
   {
     userId: text("user_id")
       .notNull()
@@ -40,7 +40,7 @@ export const authAccounts = pgTable(
   })
 );
 
-export const authSessions = pgTable("authflow_sessions", {
+export const authSessions = pgTable("bolkauth_sessions", {
   sessionToken: text("session_token").primaryKey().notNull(),
   userId: text("user_id")
     .notNull()
@@ -49,7 +49,7 @@ export const authSessions = pgTable("authflow_sessions", {
 });
 
 export const authVerificationTokens = pgTable(
-  "authflow_verification_tokens",
+  "bolkauth_verification_tokens",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
@@ -60,7 +60,7 @@ export const authVerificationTokens = pgTable(
   })
 );
 
-export const authUserMetadata = pgTable("authflow_user_metadata", {
+export const authUserMetadata = pgTable("bolkauth_user_metadata", {
   id: text("id").primaryKey().notNull(),
   userId: text("user_id")
     .notNull()

@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/nextjs",
+  "name": "@bolkauth/nextjs",
   "version": "0.1.0",
-  "description": "Next.js App Router handlers and middleware for AuthFlow",
+  "description": "Next.js App Router handlers and middleware for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,8 +30,8 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@authflow/core": "workspace:*",
-    "@authflow/react": "workspace:*"
+    "@bolkauth/core": "workspace:*",
+    "@bolkauth/react": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

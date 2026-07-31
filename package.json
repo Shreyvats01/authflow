@@ -1,5 +1,5 @@
 {
-  "name": "@authflow/monorepo",
+  "name": "@bolkauth/monorepo",
   "private": true,
   "scripts": {
     "build": "turbo run build",

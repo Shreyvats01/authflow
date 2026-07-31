@@ -1,4 +1,4 @@
-import type { AuthFlowConfig } from './types';
+import type { BolkAuthConfig } from './types';
 import { hashPassword, verifyPassword } from './password';
 import { hashToken, signJwt, verifyJwt } from './session';
 import { buildAuthorizationUrl, exchangeCodeForToken, fetchUserInfo } from './oauth';
@@ -22,24 +22,24 @@ export function errorResponse(
   });
 }
 
-function parseCookie(cookieHeader: string | null, cookieName = 'authflow.session') {
+function parseCookie(cookieHeader: string | null, cookieName = 'bolkauth.session') {
   if (!cookieHeader) return null;
   const match = cookieHeader.match(new RegExp(`(^| )${cookieName}=([^;]+)`));
   return match ? match[2] : null;
 }
 
-function createSessionCookie(jwt: string, maxAge: number, cookieName = 'authflow.session') {
+function createSessionCookie(jwt: string, maxAge: number, cookieName = 'bolkauth.session') {
   return `${cookieName}=${jwt}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-function createClearCookie(cookieName = 'authflow.session') {
+function createClearCookie(cookieName = 'bolkauth.session') {
   return `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
-export class AuthFlowInstance {
-  config: AuthFlowConfig;
+export class BolkAuthInstance {
+  config: BolkAuthConfig;
 
-  constructor(config: AuthFlowConfig) {
+  constructor(config: BolkAuthConfig) {
     this.config = config;
   }
 
@@ -106,7 +106,7 @@ export class AuthFlowInstance {
     });
 
     const jwt = await signJwt({ sessionId: session.id, userId }, this.config.secret);
-    const cookieName = this.config.session?.cookieName || 'authflow.session';
+    const cookieName = this.config.session?.cookieName || 'bolkauth.session';
     const cookie = createSessionCookie(jwt, maxAge, cookieName);
     
     return { session, token, jwt, cookie };
@@ -114,7 +114,7 @@ export class AuthFlowInstance {
 
   private async getAuthSession(req: Request) {
     const cookieHeader = req.headers.get('Cookie');
-    const cookieName = this.config.session?.cookieName || 'authflow.session';
+    const cookieName = this.config.session?.cookieName || 'bolkauth.session';
     const jwt = parseCookie(cookieHeader, cookieName);
     if (!jwt) return null;
 
@@ -217,7 +217,7 @@ export class AuthFlowInstance {
     if (payload) {
       await this.config.adapter.deleteSession(payload.sessionId);
     }
-    const cookieName = this.config.session?.cookieName || 'authflow.session';
+    const cookieName = this.config.session?.cookieName || 'bolkauth.session';
     const clearCookie = createClearCookie(cookieName);
     
     return successResponse({ success: true }, { 'Set-Cookie': clearCookie });
@@ -316,7 +316,7 @@ export class AuthFlowInstance {
         user = userInfo.email ? await this.config.adapter.findUserByEmail(userInfo.email) : null;
         if (!user) {
           user = await this.config.adapter.createUser({
-            email: userInfo.email ?? `${provider}_${userInfo.id}@noemail.authflow`,
+            email: userInfo.email ?? `${provider}_${userInfo.id}@noemail.bolkauth`,
             name: userInfo.name,
             image: userInfo.image,
             emailVerified: new Date(),
@@ -341,6 +341,6 @@ export class AuthFlowInstance {
   }
 }
 
-export function createAuthFlow(config: AuthFlowConfig) {
-  return new AuthFlowInstance(config);
+export function createBolkAuth(config: BolkAuthConfig) {
+  return new BolkAuthInstance(config);
 }

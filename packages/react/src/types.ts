@@ -1,9 +1,9 @@
-export interface AuthFlowError {
-  code: AuthFlowErrorCode;
+export interface BolkAuthError {
+  code: BolkAuthErrorCode;
   message: string;
 }
 
-export type AuthFlowErrorCode = 
+export type BolkAuthErrorCode = 
   | 'invalid_credentials'
   | 'user_exists'
   | 'weak_password'
@@ -13,7 +13,10 @@ export type AuthFlowErrorCode =
 
 export interface HookResponse<T = any> {
   isLoading: boolean;
-  error: AuthFlowError | null;
+  error: BolkAuthError | null;
   fieldErrors?: Record<string, string>;
   data?: T;
 }
+
+export type AuthFlowError = BolkAuthError;
+export type AuthFlowErrorCode = BolkAuthErrorCode;

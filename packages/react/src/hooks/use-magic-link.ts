@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useAuthContext } from '../provider';
-import { AuthFlowError, HookResponse } from '../types';
+import { BolkAuthError, HookResponse } from '../types';
 
 export const useMagicLink = () => {
   const { config } = useAuthContext();
   const baseURL = config?.baseURL ?? '/api/auth';
   
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<AuthFlowError | null>(null);
+  const [error, setError] = useState<BolkAuthError | null>(null);
 
   const sendMagicLink = async (email: string): Promise<HookResponse> => {
     setIsLoading(true);
@@ -27,7 +27,7 @@ export const useMagicLink = () => {
         return { isLoading: false, error: null, data };
       } else {
         setIsLoading(false);
-        const hookError: AuthFlowError = {
+        const hookError: BolkAuthError = {
           code: data.error?.code || 'unknown_error',
           message: data.error?.message || 'Failed to send magic link',
         };
@@ -36,7 +36,7 @@ export const useMagicLink = () => {
       }
     } catch (e) {
       setIsLoading(false);
-      const hookError: AuthFlowError = {
+      const hookError: BolkAuthError = {
         code: 'network_error',
         message: 'Network error occurred',
       };

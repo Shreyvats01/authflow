@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuthContext } from '../provider';
-import { AuthFlowError, HookResponse } from '../types';
+import { BolkAuthError, HookResponse } from '../types';
 
 interface OnboardingState {
   currentStep: number;
@@ -21,7 +21,7 @@ export const useOnboarding = (initialSteps = 3) => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<AuthFlowError | null>(null);
+  const [error, setError] = useState<BolkAuthError | null>(null);
 
   const goToNextStep = useCallback(() => {
     setState((prev) => ({
@@ -61,7 +61,7 @@ export const useOnboarding = (initialSteps = 3) => {
         return { isLoading: false, error: null, data: resData };
       } else {
         setIsLoading(false);
-        const hookError: AuthFlowError = {
+        const hookError: BolkAuthError = {
           code: resData.error?.code || 'unknown_error',
           message: resData.error?.message || 'Failed to save step',
         };
@@ -70,7 +70,7 @@ export const useOnboarding = (initialSteps = 3) => {
       }
     } catch (e) {
       setIsLoading(false);
-      const hookError: AuthFlowError = {
+      const hookError: BolkAuthError = {
         code: 'network_error',
         message: 'Network error occurred',
       };
@@ -98,7 +98,7 @@ export const useOnboarding = (initialSteps = 3) => {
         return { isLoading: false, error: null, data: resData };
       } else {
         setIsLoading(false);
-        const hookError: AuthFlowError = {
+        const hookError: BolkAuthError = {
           code: resData.error?.code || 'unknown_error',
           message: resData.error?.message || 'Failed to complete onboarding',
         };
@@ -107,7 +107,7 @@ export const useOnboarding = (initialSteps = 3) => {
       }
     } catch (e) {
       setIsLoading(false);
-      const hookError: AuthFlowError = {
+      const hookError: BolkAuthError = {
         code: 'network_error',
         message: 'Network error occurred',
       };

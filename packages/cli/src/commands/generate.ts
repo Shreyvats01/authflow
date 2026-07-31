@@ -14,14 +14,14 @@ export async function generate(args: string[]) {
   if (target === "env") {
     s.start("Generating .env.example...");
     const envContent = `
-# AuthFlow Environment Variables
-AUTHFLOW_SECRET=your_super_secret_key_here
+# BolkAuth Environment Variables
+BOLKAUTH_SECRET=your_super_secret_key_here
 DATABASE_URL=postgres://user:password@localhost:5432/db
 # OAuth Providers (Optional)
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 `;
-    await fs.writeFile(path.join(process.cwd(), ".env.example"), envContent.trim() + "\\n");
+    await fs.writeFile(path.join(process.cwd(), ".env.example"), envContent.trim() + "\n");
     s.stop("Generated .env.example");
   } else if (target === "types") {
     s.start("Generating types...");
@@ -35,8 +35,8 @@ export type User = {
   createdAt: Date;
 };
 `;
-    await fs.writeFile(path.join(typesDir, "authflow.d.ts"), typesContent.trim() + "\\n");
-    s.stop("Generated types at types/authflow.d.ts");
+    await fs.writeFile(path.join(typesDir, "bolkauth.d.ts"), typesContent.trim() + "\n");
+    s.stop("Generated types at types/bolkauth.d.ts");
   } else {
     log.error(`Unknown generate target: ${target}`);
   }

@@ -1,11 +1,10 @@
-import { createAuthFlow, AuthFlowAdapter } from "@authflow/core";
+import { createBolkAuth, BolkAuthAdapter } from "@bolkauth/core";
 
-// In-memory AuthFlowAdapter for instant playground execution without database setup
 const memoryUsers = new Map<string, any>();
 const memorySessions = new Map<string, any>();
 const memoryMetadata = new Map<string, any>();
 
-export const memoryAdapter: AuthFlowAdapter = {
+export const memoryAdapter: BolkAuthAdapter = {
   async createUser(data) {
     const user = {
       id: `usr_${Math.random().toString(36).substring(2, 9)}`,
@@ -123,7 +122,7 @@ export const memoryAdapter: AuthFlowAdapter = {
   },
 };
 
-export const auth = createAuthFlow({
+export const auth = createBolkAuth({
   adapter: memoryAdapter,
   secret: "playground_secret_key_min_32_characters_long_12345",
   emailAndPassword: {

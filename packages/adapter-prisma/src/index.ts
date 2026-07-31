@@ -1,4 +1,4 @@
-import type { AuthFlowAdapter, User, Session, Account, VerificationToken, UserMetadata } from '@authflow/core';
+import type { BolkAuthAdapter, User, Session, Account, VerificationToken, UserMetadata } from '@bolkauth/core';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 
@@ -9,7 +9,7 @@ function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export function createPrismaAdapter(db: any): AuthFlowAdapter {
+export function createPrismaAdapter(db: any): BolkAuthAdapter {
   return {
     async createUser(user) {
       return await db.authUser.create({ data: user });

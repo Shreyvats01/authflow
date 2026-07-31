@@ -3,9 +3,9 @@ title: Getting Started
 description: High-performance, self-hosted, type-safe authentication library for Next.js & React.
 ---
 
-# Welcome to AuthFlow
+# Welcome to BolkAuth
 
-**AuthFlow** is a modern, developer-first authentication library for TypeScript applications. It gives you Clerk-like developer experience, headless React hooks, and Next.js App Router integrations while letting you own your database and infrastructure completely.
+**BolkAuth** is a modern, developer-first authentication library for TypeScript applications. It gives you Clerk-like developer experience, headless React hooks, and Next.js App Router integrations while letting you own your database and infrastructure completely.
 
 ---
 
@@ -16,21 +16,21 @@ description: High-performance, self-hosted, type-safe authentication library for
 Install the core package, framework binding, and your database adapter:
 
 ```bash
-pnpm add @authflow/core @authflow/nextjs @authflow/react @authflow/adapter-drizzle
+pnpm add @bolkauth/core @bolkauth/nextjs @bolkauth/react @bolkauth/adapter-drizzle
 ```
 
 ### 2. Configure Auth Engine
 
-Create `lib/auth.ts` to instantiate your AuthFlow engine:
+Create `lib/auth.ts` to instantiate your BolkAuth engine:
 
 ```ts
-import { createAuthFlow } from "@authflow/core";
-import { createDrizzleAdapter } from "@authflow/adapter-drizzle";
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle";
 import { db } from "./db";
 
-export const auth = createAuthFlow({
+export const auth = createBolkAuth({
   adapter: createDrizzleAdapter(db),
-  secret: process.env.AUTHFLOW_SECRET!,
+  secret: process.env.BOLKAUTH_SECRET!,
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -55,13 +55,13 @@ export const auth = createAuthFlow({
 
 ### 3. Expose API Route Handler
 
-Create `app/api/auth/[...authflow]/route.ts`:
+Create `app/api/auth/[...bolkauth]/route.ts`:
 
 ```ts
-import { authFlowHandler } from "@authflow/nextjs";
+import { bolkAuthHandler } from "@bolkauth/nextjs";
 import { auth } from "@/lib/auth";
 
-const handlers = authFlowHandler(auth);
+const handlers = bolkAuthHandler(auth);
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;
@@ -69,18 +69,18 @@ export const POST = handlers.POST;
 
 ### 4. Wrap App with React Provider
 
-Wrap your `app/layout.tsx` with `<AuthFlowProvider>`:
+Wrap your `app/layout.tsx` with `<BolkAuthProvider>`:
 
 ```tsx
-import { AuthFlowProvider } from "@authflow/react";
+import { BolkAuthProvider } from "@bolkauth/react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AuthFlowProvider config={{ baseURL: "/api/auth" }}>
+        <BolkAuthProvider config={{ baseURL: "/api/auth" }}>
           {children}
-        </AuthFlowProvider>
+        </BolkAuthProvider>
       </body>
     </html>
   );
@@ -92,10 +92,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 Add `middleware.ts` to secure protected paths:
 
 ```ts
-import { authFlowMiddleware } from "@authflow/nextjs";
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
 import { auth } from "@/lib/auth";
 
-export default authFlowMiddleware(auth, {
+export default bolkAuthMiddleware(auth, {
   signInUrl: "/sign-in",
   onboardingUrl: "/onboarding",
   publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
@@ -110,13 +110,13 @@ export const config = {
 
 ## 🏛️ Monorepo Architecture
 
-AuthFlow is built as a clean modular monorepo:
+BolkAuth is built as a clean modular monorepo:
 
 | Package | npm Package | Description |
 |---|---|---|
-| Core Engine | `@authflow/core` | Zero-dependency Web Crypto engine handling JWTs, hashing, OAuth, & state machines |
-| React Bindings | `@authflow/react` | Headless hooks (`useSignIn`, `useSignUp`, `useUser`, `useOAuth`) & cross-tab sync |
-| Next.js Helpers | `@authflow/nextjs` | Edge middleware, Next.js 14+ Route Handlers, & Server Component helpers |
-| Drizzle Adapter | `@authflow/adapter-drizzle` | PostgreSQL table definitions and adapter logic for Drizzle ORM |
-| Prisma Adapter | `@authflow/adapter-prisma` | Schema definitions and type-safe adapter for Prisma ORM |
-| CLI Tool | `@authflow/cli` | Scaffolding wizard (`authflow init`, `add`, `generate`) |
+| Core Engine | `@bolkauth/core` | Zero-dependency Web Crypto engine handling JWTs, hashing, OAuth, & state machines |
+| React Bindings | `@bolkauth/react` | Headless hooks (`useSignIn`, `useSignUp`, `useUser`, `useOAuth`) & cross-tab sync |
+| Next.js Helpers | `@bolkauth/nextjs` | Edge middleware, Next.js 14+ Route Handlers, & Server Component helpers |
+| Drizzle Adapter | `@bolkauth/adapter-drizzle` | PostgreSQL table definitions and adapter logic for Drizzle ORM |
+| Prisma Adapter | `@bolkauth/adapter-prisma` | Schema definitions and type-safe adapter for Prisma ORM |
+| CLI Tool | `@bolkauth/cli` | Scaffolding wizard (`bolkauth init`, `add`, `generate`) |

@@ -1,4 +1,4 @@
-import type { AuthFlowAdapter, UserMetadata } from './adapters/types';
+import type { BolkAuthAdapter, UserMetadata } from './adapters/types';
 
 export interface SessionConfig {
   maxAge?: number;
@@ -25,8 +25,8 @@ export interface OnboardingConfig {
   steps?: string[];
 }
 
-export interface AuthFlowConfig {
-  adapter: AuthFlowAdapter;
+export interface BolkAuthConfig {
+  adapter: BolkAuthAdapter;
   secret: string;
   session?: SessionConfig;
   email?: EmailConfig;
@@ -40,15 +40,15 @@ export interface AuthFlowConfig {
   onboarding?: OnboardingConfig;
 }
 
-export interface AuthResponseError {
+export interface BolkAuthResponseError {
   code: string;
   message: string;
   fieldErrors?: Record<string, string[]>;
 }
 
-export interface AuthResponse<T = any> {
+export interface BolkAuthResponse<T = any> {
   data?: T;
-  error?: AuthResponseError;
+  error?: BolkAuthResponseError;
 }
 
-export type { UserMetadata };
+export type { UserMetadata, BolkAuthAdapter };

@@ -1,21 +1,21 @@
 ---
 title: Core Concepts
-description: Deep dive into AuthFlow architecture, sessions, security, and onboarding state machines.
+description: Deep dive into BolkAuth architecture, sessions, security, and onboarding state machines.
 ---
 
 # Core Concepts
 
-AuthFlow separates business logic from platform frameworks. The `@authflow/core` package contains the central authentication engine, session managers, password hashing algorithms, and adapter interfaces.
+BolkAuth separates business logic from platform frameworks. The `@bolkauth/core` package contains the central authentication engine, session managers, password hashing algorithms, and adapter interfaces.
 
 ---
 
 ## ⚙️ Configuration Reference
 
-The `createAuthFlow(config)` function accepts an `AuthFlowConfig` object:
+The `createBolkAuth(config)` function accepts a `BolkAuthConfig` object:
 
 ```ts
-interface AuthFlowConfig {
-  adapter: AuthFlowAdapter;
+interface BolkAuthConfig {
+  adapter: BolkAuthAdapter;
   secret: string;
   session?: SessionConfig;
   email?: EmailConfig;
@@ -30,10 +30,10 @@ interface AuthFlowConfig {
 
 | Option | Type | Description |
 |---|---|---|
-| `adapter` | `AuthFlowAdapter` | Required database adapter (Drizzle, Prisma, or custom) |
+| `adapter` | `BolkAuthAdapter` | Required database adapter (Drizzle, Prisma, or custom) |
 | `secret` | `string` | Minimum 32-character secret key used for HMAC JWT signatures |
 | `session.maxAge` | `number` | Session duration in seconds (default: 30 days) |
-| `session.cookieName` | `string` | HTTP cookie name (default: `authflow.session`) |
+| `session.cookieName` | `string` | HTTP cookie name (default: `bolkauth.session`) |
 | `emailAndPassword.enabled` | `boolean` | Enables traditional email/password registration and login |
 | `emailAndPassword.minPasswordLength` | `number` | Minimum required password length (default: 8) |
 | `socialProviders` | `Object` | OAuth provider credentials (GitHub, Google, etc.) |
@@ -44,7 +44,7 @@ interface AuthFlowConfig {
 
 ## 🔒 Session & Security Model
 
-AuthFlow uses **stateless HTTP-only, SameSite Lax JWT cookies** backed by Web Crypto APIs (PBKDF2 with 100,000 iterations for passwords, HMAC-SHA256 for tokens).
+BolkAuth uses **stateless HTTP-only, SameSite Lax JWT cookies** backed by Web Crypto APIs (PBKDF2 with 100,000 iterations for passwords, HMAC-SHA256 for tokens).
 
 ### Authentication Lifecycle
 
@@ -58,7 +58,7 @@ AuthFlow uses **stateless HTTP-only, SameSite Lax JWT cookies** backed by Web Cr
 
 ## 🧭 Multi-Step Onboarding State Machine
 
-AuthFlow includes a built-in onboarding engine. User progress is saved directly to user metadata records.
+BolkAuth includes a built-in onboarding engine. User progress is saved directly to user metadata records.
 
 ```ts
 // Update current step
@@ -72,4 +72,4 @@ await fetch('/api/auth/onboarding/step', {
 await fetch('/api/auth/onboarding/complete', { method: 'POST' });
 ```
 
-When `onboarding.requiredForAccess` is enabled, `authFlowMiddleware` automatically redirects un-onboarded users away from protected routes to `/onboarding`.
+When `onboarding.requiredForAccess` is enabled, `bolkAuthMiddleware` automatically redirects un-onboarded users away from protected routes to `/onboarding`.

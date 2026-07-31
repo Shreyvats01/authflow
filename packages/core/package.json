@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/core",
+  "name": "@bolkauth/core",
   "version": "0.1.0",
-  "description": "Core framework-agnostic auth engine for AuthFlow",
+  "description": "Core framework-agnostic auth engine for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",

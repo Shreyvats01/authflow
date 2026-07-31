@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useAuth, useUser } from '@authflow/react';
+import { useAuth, useUser } from '@bolkauth/react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-900 p-8 text-white">
       <div className="max-w-5xl mx-auto">
         <header className="flex justify-between items-center mb-8 pb-4">
-          <h2 className="text-2xl font-bold">AuthFlow Dashboard</h2>
+          <h2 className="text-2xl font-bold">BolkAuth Dashboard</h2>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300">
               {isSignedIn ? (

@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server";
 
-export function authFlowHandler(authInstance: any) {
+export function bolkAuthHandler(authInstance: any) {
   const handler = async (req: NextRequest) => {
-    // Delegate the request to the core authInstance
     if (typeof authInstance.handleRequest === 'function') {
       return authInstance.handleRequest(req);
     }
     
-    // Fallback stub for standard HTTP methods
-    return new Response(JSON.stringify({ message: "AuthFlow handler" }), {
+    return new Response(JSON.stringify({ message: "BolkAuth handler" }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
@@ -21,3 +19,5 @@ export function authFlowHandler(authInstance: any) {
     DELETE: handler,
   };
 }
+
+export const authFlowHandler = bolkAuthHandler;

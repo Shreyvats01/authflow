@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createAuthFlow, AuthFlowAdapter } from './index';
+import { createBolkAuth, BolkAuthAdapter } from './index';
 
-function createMockAdapter(): AuthFlowAdapter {
+function createMockAdapter(): BolkAuthAdapter {
   const users = new Map<string, any>();
   const sessions = new Map<string, any>();
   const metadata = new Map<string, any>();
@@ -83,11 +83,11 @@ function createMockAdapter(): AuthFlowAdapter {
   };
 }
 
-describe('AuthFlow Engine', () => {
-  let auth: ReturnType<typeof createAuthFlow>;
+describe('BolkAuth Engine', () => {
+  let auth: ReturnType<typeof createBolkAuth>;
 
   beforeEach(() => {
-    auth = createAuthFlow({
+    auth = createBolkAuth({
       adapter: createMockAdapter(),
       secret: 'test_secret_key_minimum_32_characters_long_12345',
       onboarding: {
@@ -104,50 +104,50 @@ describe('AuthFlow Engine', () => {
   it('should sign up a user and return a cookie', async () => {
     const req = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'test@authflow.dev', password: 'password123', name: 'Test User' }),
+      body: JSON.stringify({ email: 'test@bolkauth.dev', password: 'password123', name: 'Test User' }),
     });
 
     const res = await auth.handleRequest(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data.user.email).toBe('test@authflow.dev');
+    expect(body.data.user.email).toBe('test@bolkauth.dev');
     expect(body.data.session).toBeDefined();
 
     const cookie = res.headers.get('Set-Cookie');
-    expect(cookie).toMatch(/authflow\.session=([^;]+)/);
+    expect(cookie).toMatch(/bolkauth\.session=([^;]+)/);
   });
 
   it('should sign in an existing user and return a cookie', async () => {
     const signUpReq = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'login@authflow.dev', password: 'password123', name: 'Login User' }),
+      body: JSON.stringify({ email: 'login@bolkauth.dev', password: 'password123', name: 'Login User' }),
     });
     await auth.handleRequest(signUpReq);
 
     const req = new Request('http://localhost/sign-in/email', {
       method: 'POST',
-      body: JSON.stringify({ email: 'login@authflow.dev', password: 'password123' }),
+      body: JSON.stringify({ email: 'login@bolkauth.dev', password: 'password123' }),
     });
 
     const res = await auth.handleRequest(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data.user.email).toBe('login@authflow.dev');
+    expect(body.data.user.email).toBe('login@bolkauth.dev');
     
     const cookie = res.headers.get('Set-Cookie');
-    expect(cookie).toMatch(/authflow\.session=([^;]+)/);
+    expect(cookie).toMatch(/bolkauth\.session=([^;]+)/);
   });
 
   it('should fail sign in with wrong password', async () => {
     const signUpReq = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'login2@authflow.dev', password: 'password123', name: 'Login User 2' }),
+      body: JSON.stringify({ email: 'login2@bolkauth.dev', password: 'password123', name: 'Login User 2' }),
     });
     await auth.handleRequest(signUpReq);
 
     const req = new Request('http://localhost/sign-in/email', {
       method: 'POST',
-      body: JSON.stringify({ email: 'login2@authflow.dev', password: 'wrongpassword' }),
+      body: JSON.stringify({ email: 'login2@bolkauth.dev', password: 'wrongpassword' }),
     });
 
     const res = await auth.handleRequest(req);
@@ -159,7 +159,7 @@ describe('AuthFlow Engine', () => {
   it('should get session with valid cookie', async () => {
     const signUpReq = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'session@authflow.dev', password: 'password123' }),
+      body: JSON.stringify({ email: 'session@bolkauth.dev', password: 'password123' }),
     });
     const signUpRes = await auth.handleRequest(signUpReq);
     const cookie = signUpRes.headers.get('Set-Cookie')!;
@@ -171,14 +171,14 @@ describe('AuthFlow Engine', () => {
     const res = await auth.handleRequest(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data.user.email).toBe('session@authflow.dev');
+    expect(body.data.user.email).toBe('session@bolkauth.dev');
     expect(body.data.session).toBeDefined();
   });
 
   it('should clear cookie on sign out', async () => {
     const signUpReq = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'out@authflow.dev', password: 'password123' }),
+      body: JSON.stringify({ email: 'out@bolkauth.dev', password: 'password123' }),
     });
     const signUpRes = await auth.handleRequest(signUpReq);
     const cookie = signUpRes.headers.get('Set-Cookie')!;
@@ -196,7 +196,7 @@ describe('AuthFlow Engine', () => {
   it('should perform onboarding step with session', async () => {
     const signUpReq = new Request('http://localhost/sign-up', {
       method: 'POST',
-      body: JSON.stringify({ email: 'onboard@authflow.dev', password: 'password123' }),
+      body: JSON.stringify({ email: 'onboard@bolkauth.dev', password: 'password123' }),
     });
     const signUpRes = await auth.handleRequest(signUpReq);
     const cookie = signUpRes.headers.get('Set-Cookie')!;

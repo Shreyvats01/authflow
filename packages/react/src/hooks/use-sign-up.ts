@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useAuthContext } from '../provider';
-import { AuthFlowError, HookResponse } from '../types';
+import { BolkAuthError, HookResponse } from '../types';
 
 export const useSignUp = () => {
   const { config, reload } = useAuthContext();
   const baseURL = config?.baseURL ?? '/api/auth';
   
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<AuthFlowError | null>(null);
+  const [error, setError] = useState<BolkAuthError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const signUp = async (data: any): Promise<HookResponse> => {
@@ -25,7 +25,7 @@ export const useSignUp = () => {
       const resData = await res.json();
       
       if (res.ok) {
-        const channel = new BroadcastChannel('authflow_sync');
+        const channel = new BroadcastChannel('bolkauth_sync');
         channel.postMessage('sync_session');
         channel.close();
         await reload();
@@ -34,7 +34,7 @@ export const useSignUp = () => {
         return { isLoading: false, error: null, data: resData };
       } else {
         setIsLoading(false);
-        const hookError: AuthFlowError = {
+        const hookError: BolkAuthError = {
           code: resData.error?.code || 'unknown_error',
           message: resData.error?.message || 'Failed to sign up',
         };
@@ -44,7 +44,7 @@ export const useSignUp = () => {
       }
     } catch (e) {
       setIsLoading(false);
-      const hookError: AuthFlowError = {
+      const hookError: BolkAuthError = {
         code: 'network_error',
         message: 'Network error occurred',
       };

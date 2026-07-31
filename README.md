@@ -1,10 +1,10 @@
-# AuthFlow
+# BolkAuth
 
 > Self-hosted, type-safe authentication for TypeScript. Clerk-like DX, fully owned.
 
-[![npm](https://img.shields.io/npm/v/@authflow/core)](https://www.npmjs.com/package/@authflow/core)
-[![license](https://img.shields.io/github/license/authflow/authflow)](LICENSE)
-[![docs](https://img.shields.io/badge/docs-authflow-blue)](https://shrey.github.io/clerk)
+[![npm](https://img.shields.io/npm/v/@bolkauth/core)](https://www.npmjs.com/package/@bolkauth/core)
+[![license](https://img.shields.io/github/license/shrey/clerk)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-bolkauth-blue)](https://shrey.github.io/clerk/bolkauth)
 
 ---
 
@@ -17,7 +17,7 @@
 - 🗄️ **Database Adapters** — Official Drizzle ORM and Prisma ORM adapters
 - ⚡ **Headless React Hooks** — `useSignIn`, `useSignUp`, `useUser`, `useOAuth`, `useOnboarding`
 - 🖥️ **Next.js App Router** — Route Handlers, Edge Middleware, and Server Component helpers
-- 🛠️ **CLI Scaffolding** — Interactive project setup (`npx @authflow/cli init`)
+- 🛠️ **CLI Scaffolding** — Interactive project setup (`npx @bolkauth/cli init`)
 
 ---
 
@@ -25,25 +25,25 @@
 
 | Package | Version | Description |
 |---|---|---|
-| [`@authflow/core`](./packages/core) | `0.1.0` | Core framework-agnostic auth engine |
-| [`@authflow/react`](./packages/react) | `0.1.0` | React hooks & `<AuthFlowProvider>` |
-| [`@authflow/nextjs`](./packages/nextjs) | `0.1.0` | Next.js App Router handlers & middleware |
-| [`@authflow/adapter-drizzle`](./packages/adapter-drizzle) | `0.1.0` | Drizzle ORM adapter & schema |
-| [`@authflow/adapter-prisma`](./packages/adapter-prisma) | `0.1.0` | Prisma ORM adapter & schema |
-| [`@authflow/cli`](./packages/cli) | `0.1.0` | CLI setup wizard (`authflow init`) |
+| [`@bolkauth/core`](./packages/core) | `0.1.0` | Core framework-agnostic auth engine |
+| [`@bolkauth/react`](./packages/react) | `0.1.0` | React hooks & `<BolkAuthProvider>` |
+| [`@bolkauth/nextjs`](./packages/nextjs) | `0.1.0` | Next.js App Router handlers & middleware |
+| [`@bolkauth/adapter-drizzle`](./packages/adapter-drizzle) | `0.1.0` | Drizzle ORM adapter & schema |
+| [`@bolkauth/adapter-prisma`](./packages/adapter-prisma) | `0.1.0` | Prisma ORM adapter & schema |
+| [`@bolkauth/cli`](./packages/cli) | `0.1.0` | CLI setup wizard (`bolkauth init`) |
 
 ---
 
 ## 🚀 Quick Start
 
-Initialize AuthFlow in your project with one command:
+Initialize BolkAuth in your project with one command:
 
 ```bash
-npx @authflow/cli init
+npx @bolkauth/cli init
 ```
 
 ---
 
 ## 📄 License
 
-MIT © [AuthFlow Contributors](LICENSE)
+MIT © [BolkAuth Contributors](LICENSE)

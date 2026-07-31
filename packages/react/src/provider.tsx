@@ -5,7 +5,7 @@ interface AuthContextValue {
   isSignedIn: boolean;
   userId: string | null;
   sessionId: string | null;
-  user: any | null; // Replace with proper type later
+  user: any | null;
   session: any | null;
   reload: () => Promise<void>;
   config?: { baseURL?: string };
@@ -13,14 +13,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export interface AuthFlowProviderProps {
+export interface BolkAuthProviderProps {
   children: ReactNode;
   config?: {
     baseURL?: string;
   };
 }
 
-export const AuthFlowProvider = ({ children, config }: AuthFlowProviderProps) => {
+export const BolkAuthProvider = ({ children, config }: BolkAuthProviderProps) => {
   const baseURL = config?.baseURL ?? '/api/auth';
   const [state, setState] = useState({
     isLoaded: false,
@@ -69,8 +69,7 @@ export const AuthFlowProvider = ({ children, config }: AuthFlowProviderProps) =>
   useEffect(() => {
     fetchSession();
 
-    // Cross-tab synchronization
-    const channel = new BroadcastChannel('authflow_sync');
+    const channel = new BroadcastChannel('bolkauth_sync');
     channel.onmessage = (event) => {
       if (event.data === 'sync_session') {
         fetchSession();
@@ -92,7 +91,10 @@ export const AuthFlowProvider = ({ children, config }: AuthFlowProviderProps) =>
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthFlowProvider');
+    throw new Error('useAuthContext must be used within a BolkAuthProvider');
   }
   return context;
 };
+
+export const AuthFlowProvider = BolkAuthProvider;
+export type AuthFlowProviderProps = BolkAuthProviderProps;

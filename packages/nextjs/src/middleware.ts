@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export interface AuthFlowMiddlewareOptions {
+export interface BolkAuthMiddlewareOptions {
   signInUrl?: string;
   onboardingUrl?: string;
   publicRoutes?: string[];
 }
 
-export function authFlowMiddleware(authInstance: any, options: AuthFlowMiddlewareOptions = {}) {
+export function bolkAuthMiddleware(authInstance: any, options: BolkAuthMiddlewareOptions = {}) {
   return async (req: NextRequest) => {
     const { 
       signInUrl = '/sign-in', 
@@ -23,14 +23,12 @@ export function authFlowMiddleware(authInstance: any, options: AuthFlowMiddlewar
 
     const session = typeof authInstance.getSession === 'function' 
       ? await authInstance.getSession(req) 
-      : null; // Stub
+      : null;
 
-    // Redirect unauthenticated users
     if (!session) {
       return NextResponse.redirect(new URL(signInUrl, req.url));
     }
 
-    // Redirect un-onboarded users
     if (session.user && !session.user.onboarded && path !== onboardingUrl) {
       return NextResponse.redirect(new URL(onboardingUrl, req.url));
     }
@@ -38,3 +36,6 @@ export function authFlowMiddleware(authInstance: any, options: AuthFlowMiddlewar
     return NextResponse.next();
   };
 }
+
+export const authFlowMiddleware = bolkAuthMiddleware;
+export type AuthFlowMiddlewareOptions = BolkAuthMiddlewareOptions;

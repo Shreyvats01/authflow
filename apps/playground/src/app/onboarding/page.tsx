@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useOnboarding } from '@authflow/react';
+import { useOnboarding } from '@bolkauth/react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -97,7 +97,7 @@ export default function OnboardingPage() {
           {currentStep === 0 && (
             <form id="step1-form" onSubmit={handleStep1Submit} className="space-y-6">
               <div className="text-center mb-6">
-                <CardTitle className="text-2xl mb-2">Welcome to AuthFlow</CardTitle>
+                <CardTitle className="text-2xl mb-2">Welcome to BolkAuth</CardTitle>
                 <CardDescription className="text-slate-400">Tell us a bit about yourself</CardDescription>
               </div>
 

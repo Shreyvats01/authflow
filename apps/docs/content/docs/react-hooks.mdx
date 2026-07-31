@@ -5,7 +5,7 @@ description: Full reference for headless authentication and user management Reac
 
 # Headless React Hooks
 
-The `@authflow/react` package exposes type-safe headless hooks to build completely custom UI interfaces.
+The `@bolkauth/react` package exposes type-safe headless hooks to build completely custom UI interfaces.
 
 ---
 
@@ -14,7 +14,7 @@ The `@authflow/react` package exposes type-safe headless hooks to build complete
 Access authentication state anywhere in your React component tree:
 
 ```tsx
-import { useAuth } from "@authflow/react";
+import { useAuth } from "@bolkauth/react";
 
 export function Header() {
   const { isLoaded, isSignedIn, userId, sessionId } = useAuth();
@@ -31,85 +31,12 @@ export function Header() {
 
 ---
 
-## 👤 `useUser()` & `useSession()`
-
-Retrieve full user profile data or active session details:
-
-```tsx
-import { useUser, useSession } from "@authflow/react";
-
-export function ProfileCard() {
-  const { user } = useUser();
-  const { session } = useSession();
-
-  return (
-    <div>
-      <h2>{user?.name}</h2>
-      <p>{user?.email}</p>
-      <small>Session expires: {session?.expiresAt}</small>
-    </div>
-  );
-}
-```
-
----
-
-## 🚪 `useSignIn()` & `useSignUp()`
-
-Perform user registration and credential login with automatic error and field validation tracking:
-
-```tsx
-import { useSignIn } from "@authflow/react";
-import { useState } from "react";
-
-export function LoginForm() {
-  const { signIn, isLoading, error, fieldErrors } = useSignIn();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = await signIn({ email, password });
-    if (!result.error) {
-      window.location.href = "/dashboard";
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {error && <div className="alert-danger">{error.message}</div>}
-      
-      <input 
-        type="email" 
-        value={email} 
-        onChange={(e) => setEmail(e.target.value)} 
-        placeholder="Email" 
-      />
-      {fieldErrors?.email && <span>{fieldErrors.email}</span>}
-
-      <input 
-        type="password" 
-        value={password} 
-        onChange={(e) => setPassword(e.target.value)} 
-        placeholder="Password" 
-      />
-
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? "Signing in..." : "Sign In"}
-      </button>
-    </form>
-  );
-}
-```
-
----
-
 ## 🌐 `useOAuth()`
 
 Initiate social authentication flows with one line of code:
 
 ```tsx
-import { useOAuth } from "@authflow/react";
+import { useOAuth } from "@bolkauth/react";
 
 export function SocialButtons() {
   const { signInWithOAuth } = useOAuth();
@@ -124,26 +51,5 @@ export function SocialButtons() {
       </button>
     </div>
   );
-}
-```
-
----
-
-## ✉️ `useMagicLink()`
-
-Request passwordless login links:
-
-```tsx
-import { useMagicLink } from "@authflow/react";
-
-export function MagicLinkForm() {
-  const { sendMagicLink, isLoading, error } = useMagicLink();
-
-  const handleSend = async () => {
-    await sendMagicLink("user@example.com");
-    alert("Magic link sent!");
-  };
-
-  return <button onClick={handleSend} disabled={isLoading}>Send Magic Link</button>;
 }
 ```

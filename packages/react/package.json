@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/react",
+  "name": "@bolkauth/react",
   "version": "0.1.0",
-  "description": "Headless React hooks and provider for AuthFlow",
+  "description": "Headless React hooks and provider for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@authflow/core": "workspace:*"
+    "@bolkauth/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

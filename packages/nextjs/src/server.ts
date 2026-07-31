@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifyJwt } from "@authflow/core";
+import { verifyJwt } from "@bolkauth/core";
 
 export function createServerHelpers(authInstance: { config: { secret: string; session?: { cookieName?: string }; adapter?: any } }) {
   return {
     async getSession() {
       const cookieStore = await cookies();
-      const cookieName = authInstance.config.session?.cookieName ?? "authflow.session";
+      const cookieName = authInstance.config.session?.cookieName ?? "bolkauth.session";
       const jwt = cookieStore.get(cookieName)?.value;
       if (!jwt) return null;
       try {
@@ -32,7 +32,7 @@ export function createServerHelpers(authInstance: { config: { secret: string; se
 
 export async function getSession() {
   const cookieStore = await cookies();
-  const jwt = cookieStore.get("authflow.session")?.value || cookieStore.get("authflow_session")?.value;
+  const jwt = cookieStore.get("bolkauth.session")?.value || cookieStore.get("authflow.session")?.value;
   if (!jwt) return null;
   return { id: "session", token: jwt, user: { id: "user" } };
 }

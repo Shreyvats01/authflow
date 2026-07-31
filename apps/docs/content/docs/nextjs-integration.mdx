@@ -5,19 +5,19 @@ description: Route Handlers, Edge Middleware, and Server Component helpers for N
 
 # Next.js Integration
 
-The `@authflow/nextjs` package provides first-class support for Next.js 13+ App Router, Edge Middleware, and Server Components.
+The `@bolkauth/nextjs` package provides first-class support for Next.js 13+ App Router, Edge Middleware, and Server Components.
 
 ---
 
 ## 🛠️ 1. Dynamic Route Handler
 
-Catch all authentication API routes with a single catch-all handler file at `app/api/auth/[...authflow]/route.ts`:
+Catch all authentication API routes with a single catch-all handler file at `app/api/auth/[...bolkauth]/route.ts`:
 
 ```ts
-import { authFlowHandler } from "@authflow/nextjs";
+import { bolkAuthHandler } from "@bolkauth/nextjs";
 import { auth } from "@/lib/auth";
 
-const handlers = authFlowHandler(auth);
+const handlers = bolkAuthHandler(auth);
 
 export const GET = handlers.GET;
 export const POST = handlers.POST;
@@ -25,30 +25,17 @@ export const PATCH = handlers.PATCH;
 export const DELETE = handlers.DELETE;
 ```
 
-### Auto-Generated Endpoints
-
-- `POST /api/auth/sign-up` — User registration
-- `POST /api/auth/sign-in/email` — Email & password login
-- `POST /api/auth/sign-in/magic-link` — Request passwordless magic link
-- `GET  /api/auth/verify?token=...` — Verify magic link token
-- `GET  /api/auth/oauth/:provider` — OAuth authorization redirect
-- `GET  /api/auth/oauth/:provider/callback` — OAuth code exchange callback
-- `POST /api/auth/sign-out` — Terminate session & clear cookies
-- `GET  /api/auth/session` — Fetch current session state
-- `POST /api/auth/user/metadata` — Save custom user metadata
-- `POST /api/auth/onboarding/step` — Update onboarding step
-
 ---
 
 ## 🛡️ 2. Edge Middleware
 
-Protect public and private routes using `authFlowMiddleware` in `middleware.ts`:
+Protect public and private routes using `bolkAuthMiddleware` in `middleware.ts`:
 
 ```ts
-import { authFlowMiddleware } from "@authflow/nextjs";
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
 import { auth } from "@/lib/auth";
 
-export default authFlowMiddleware(auth, {
+export default bolkAuthMiddleware(auth, {
   signInUrl: "/sign-in",
   onboardingUrl: "/onboarding",
   publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
@@ -66,13 +53,12 @@ export const config = {
 Retrieve authenticated user sessions directly inside Server Components and Server Actions:
 
 ```tsx
-import { createServerHelpers } from "@authflow/nextjs";
+import { createServerHelpers } from "@bolkauth/nextjs";
 import { auth } from "@/lib/auth";
 
 const { getSession, getUser, requireAuth } = createServerHelpers(auth);
 
 export default async function DashboardPage() {
-  // Requires user session or redirects to /sign-in
   const user = await requireAuth();
 
   return (

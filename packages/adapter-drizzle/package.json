@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/adapter-drizzle",
+  "name": "@bolkauth/adapter-drizzle",
   "version": "0.1.0",
-  "description": "Drizzle ORM adapter for AuthFlow",
+  "description": "Drizzle ORM adapter for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -28,7 +28,7 @@
     "drizzle-orm": ">=0.29.0"
   },
   "dependencies": {
-    "@authflow/core": "workspace:*"
+    "@bolkauth/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

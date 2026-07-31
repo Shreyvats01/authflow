@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/adapter-prisma",
+  "name": "@bolkauth/adapter-prisma",
   "version": "0.1.0",
-  "description": "Prisma ORM adapter for AuthFlow",
+  "description": "Prisma ORM adapter for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@authflow/core": "workspace:*",
+    "@bolkauth/core": "workspace:*",
     "@prisma/client": "^5.10.0"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 {
-  "name": "@authflow/cli",
+  "name": "@bolkauth/cli",
   "version": "0.1.0",
-  "description": "Interactive CLI setup wizard for AuthFlow",
+  "description": "Interactive CLI setup wizard for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": {
-    "authflow": "./dist/bin.js"
+    "bolkauth": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -28,7 +28,7 @@
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@authflow/core": "workspace:*",
+    "@bolkauth/core": "workspace:*",
     "@clack/prompts": "^0.7.0",
     "chalk": "^5.3.0",
     "detect-package-manager": "^3.0.1",

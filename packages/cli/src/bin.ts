@@ -10,7 +10,7 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
-  intro(chalk.bgBlue.white(" authflow cli "));
+  intro(chalk.bgBlue.white(" bolkauth cli "));
 
   try {
     switch (command) {
@@ -24,7 +24,7 @@ async function main() {
         await generate(args.slice(1));
         break;
       case "status":
-        log.info("AuthFlow is running smoothly!");
+        log.info("BolkAuth is running smoothly!");
         break;
       default:
         log.error(`Unknown command: ${command || "none"}`);

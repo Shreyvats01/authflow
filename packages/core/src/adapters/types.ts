@@ -45,7 +45,7 @@ export interface UserMetadata {
   updatedAt: Date;
 }
 
-export interface AuthFlowAdapter {
+export interface BolkAuthAdapter {
   createUser(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User>;
   findUserById(id: string): Promise<User | null>;
   findUserByEmail(email: string): Promise<User | null>;
