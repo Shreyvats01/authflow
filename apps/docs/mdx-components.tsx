@@ -5,6 +5,13 @@ import defaultComponents from 'fumadocs-ui/mdx';
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...defaultComponents,
+    img: (props: any) => {
+      if (!props.width || !props.height) {
+        return <img {...props} />;
+      }
+      const DefaultImg = defaultComponents.img || 'img';
+      return <DefaultImg {...props} />;
+    },
     ...components,
   };
 }

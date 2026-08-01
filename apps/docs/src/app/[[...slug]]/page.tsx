@@ -3,6 +3,8 @@ import { DocsPage, DocsBody } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 
+export const dynamicParams = false;
+
 export default async function Page({ params }: { params: { slug?: string[] } }) {
   const page = source.getPage(params.slug);
   if (!page) notFound();
@@ -10,11 +12,9 @@ export default async function Page({ params }: { params: { slug?: string[] } }) 
   const MDX = page.data.exports.default;
 
   return (
-    <DocsPage toc={(page.data as any).toc ?? page.data.exports.toc} full={page.data.full}>
-      <h1 className="text-3xl font-bold mb-2">{page.data.title}</h1>
-      <p className="text-muted-foreground text-lg mb-6">{page.data.description}</p>
+    <DocsPage toc={page.data.exports.toc} full={page.data.full}>
       <DocsBody>
-        <MDX components={{ ...defaultMdxComponents }} />
+        <MDX components={defaultMdxComponents} />
       </DocsBody>
     </DocsPage>
   );
@@ -26,7 +26,7 @@ export async function generateStaticParams() {
     slug: page.slugs,
   }));
 
-  if (!params.some((p) => !p.slug || p.slug.length === 0)) {
+  if (!params.some((p) => Array.isArray(p.slug) && p.slug.length === 0)) {
     params.push({ slug: [] });
   }
 

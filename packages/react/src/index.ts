@@ -9,3 +9,4 @@ export * from './hooks/use-onboarding';
 export * from './hooks/use-user-metadata';
 export * from './hooks/use-magic-link';
 export * from './hooks/use-oauth';
+export * from './hooks/use-otp';

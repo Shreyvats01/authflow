@@ -1,6 +1,6 @@
 {
   "name": "@bolkauth/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive CLI setup wizard for BolkAuth",
   "license": "MIT",
   "repository": {

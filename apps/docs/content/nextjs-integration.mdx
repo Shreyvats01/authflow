@@ -1,0 +1,394 @@
+---
+title: Next.js Integration
+description: Complete guide to Route Handlers, Edge Middleware, Server Components, Server Actions, and tRPC integration for Next.js App Router.
+---
+
+The `@bolkauth/nextjs` package provides first-class support for the **Next.js 13+ App Router**, Edge Middleware, Server Components, and Server Actions. All helpers are fully typed and Edge Runtime compatible.
+
+---
+
+## 📦 Installation
+
+```bash
+pnpm add @bolkauth/nextjs @bolkauth/core
+```
+
+---
+
+## 🛠️ 1. Dynamic Route Handler
+
+A single catch-all file at `app/api/auth/[...bolkauth]/route.ts` handles **all** BolkAuth API routes automatically:
+
+```ts
+// app/api/auth/[...bolkauth]/route.ts
+import { bolkAuthHandler } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const handlers = bolkAuthHandler(auth);
+
+export const GET    = handlers.GET;
+export const POST   = handlers.POST;
+export const PATCH  = handlers.PATCH;
+export const DELETE = handlers.DELETE;
+```
+
+### Auto-Registered API Endpoints
+
+Once mounted, the following routes are automatically available:
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/auth/sign-up` | Register with email + password |
+| `POST` | `/api/auth/sign-in/email` | Sign in with email + password |
+| `GET` | `/api/auth/sign-in/oauth/:provider` | Initiate OAuth PKCE flow |
+| `GET` | `/api/auth/callback/:provider` | OAuth provider callback handler |
+| `POST` | `/api/auth/sign-out` | Invalidate session & clear cookie |
+| `GET` | `/api/auth/session` | Return current JWT session payload |
+| `GET` | `/api/auth/user` | Return full user object |
+| `PATCH` | `/api/auth/user` | Update user profile fields |
+| `POST` | `/api/auth/onboarding/step` | Persist onboarding step data |
+| `POST` | `/api/auth/onboarding/complete` | Mark onboarding as complete |
+| `POST` | `/api/auth/email/verify` | Verify email address with token |
+| `POST` | `/api/auth/password/reset-request` | Send password reset email |
+| `POST` | `/api/auth/password/reset` | Reset password with token |
+
+---
+
+## 🛡️ 2. Edge Middleware
+
+`bolkAuthMiddleware` runs at the Edge Runtime — before any Server Component or Route Handler renders. It reads and validates the session JWT cookie, then redirects unauthenticated or un-onboarded users.
+
+```ts
+// middleware.ts  (project root, next to app/ directory)
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export default bolkAuthMiddleware(auth, {
+  signInUrl: "/sign-in",
+  onboardingUrl: "/onboarding",
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth", "/about", "/pricing"],
+  afterSignInUrl: "/dashboard",
+});
+
+export const config = {
+  // Run middleware on all routes except static files and _next internals
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+};
+```
+
+### Middleware Options Reference
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `signInUrl` | `string` | `"/sign-in"` | Redirect target for unauthenticated users hitting protected routes |
+| `onboardingUrl` | `string` | `"/onboarding"` | Redirect target for authenticated but un-onboarded users |
+| `publicRoutes` | `string[]` | `[]` | Exact paths or prefix patterns that don't require authentication |
+| `afterSignInUrl` | `string` | `"/dashboard"` | Where to send users after a successful sign-in redirect |
+| `ignoredRoutes` | `string[]` | `[]` | Routes the middleware should skip entirely (e.g., webhooks) |
+
+### Route Matching Patterns
+
+```ts
+publicRoutes: [
+  "/",             // exact match
+  "/about",        // exact match
+  "/blog/(.*)",    // all /blog/* paths (regex prefix)
+  "/api/webhooks", // webhooks don't need auth
+]
+```
+
+---
+
+## 🖥️ 3. Server Component Helpers
+
+`createServerHelpers(auth)` returns three async functions you can call inside Server Components, Server Actions, and Route Handlers:
+
+```ts
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const { getSession, getUser, requireAuth } = createServerHelpers(auth);
+```
+
+### `getSession()` — Read-only session payload
+
+Returns the raw JWT payload or `null` if no valid session exists. Does **not** query the database.
+
+```tsx
+// app/components/nav-bar.tsx
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const { getSession } = createServerHelpers(auth);
+
+export default async function NavBar() {
+  const session = await getSession();
+  // session: { sessionId: string, userId: string, iat: number, exp: number } | null
+
+  return (
+    <nav className="flex items-center justify-between p-4">
+      <span>MyApp</span>
+      {session ? (
+        <span className="text-sm text-gray-500">User: {session.userId}</span>
+      ) : (
+        <a href="/sign-in">Sign In</a>
+      )}
+    </nav>
+  );
+}
+```
+
+### `getUser()` — Full user object from DB
+
+Reads the session JWT, then fetches the full user from the database via the adapter. Returns `null` if not authenticated.
+
+```tsx
+// app/dashboard/page.tsx
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const { getUser } = createServerHelpers(auth);
+
+export default async function DashboardPage() {
+  const user = await getUser();
+  // user: { id, email, name, image, metadata, ... } | null
+
+  if (!user) {
+    // Shouldn't happen if middleware is protecting this route,
+    // but handle gracefully anyway
+    redirect("/sign-in");
+  }
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold">
+        Welcome back, {user.name ?? user.email}!
+      </h1>
+      <p className="text-gray-500 text-sm">User ID: {user.id}</p>
+      {user.metadata?.onboardingData && (
+        <p>Role: {(user.metadata.onboardingData as any).role}</p>
+      )}
+    </div>
+  );
+}
+```
+
+### `requireAuth()` — Authenticated or throw
+
+Reads the session, fetches the full user from DB, and **throws a redirect** to `signInUrl` if there's no valid session. Use this in pages/layouts where you want to guarantee an authenticated user.
+
+```tsx
+// app/settings/page.tsx
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const { requireAuth } = createServerHelpers(auth);
+
+export default async function SettingsPage() {
+  // Throws and redirects to /sign-in if unauthenticated
+  const user = await requireAuth();
+
+  return (
+    <div>
+      <h1>Account Settings</h1>
+      <p>Email: {user.email}</p>
+    </div>
+  );
+}
+```
+
+### Quick Comparison
+
+| Helper | DB Query | Returns | Behavior when unauthenticated |
+|---|---|---|---|
+| `getSession()` | ❌ | `SessionPayload \| null` | Returns `null` |
+| `getUser()` | ✅ | `User \| null` | Returns `null` |
+| `requireAuth()` | ✅ | `User` (never null) | Redirects to `signInUrl` |
+
+---
+
+## ⚡ 4. Server Actions
+
+BolkAuth works seamlessly with Next.js Server Actions. Use `requireAuth()` inside an action to ensure it can only run for authenticated users:
+
+```ts
+// app/actions/profile.ts
+"use server";
+
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+
+const { requireAuth } = createServerHelpers(auth);
+
+export async function updateDisplayName(formData: FormData) {
+  const user = await requireAuth(); // throws 401 redirect if not signed in
+
+  const name = formData.get("name") as string;
+  if (!name || name.trim().length < 2) {
+    return { error: "Name must be at least 2 characters." };
+  }
+
+  await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/user`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim() }),
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+```
+
+```tsx
+// app/settings/profile-form.tsx
+"use client";
+
+import { updateDisplayName } from "@/app/actions/profile";
+import { useState } from "react";
+
+export function ProfileForm({ currentName }: { currentName: string }) {
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function handleSubmit(formData: FormData) {
+    const result = await updateDisplayName(formData);
+    setStatus(result.error ?? "Saved!");
+  }
+
+  return (
+    <form action={handleSubmit} className="space-y-4">
+      <input
+        name="name"
+        defaultValue={currentName}
+        className="border rounded p-2 w-full"
+      />
+      {status && <p className="text-sm text-green-600">{status}</p>}
+      <button type="submit" className="bg-black text-white px-4 py-2 rounded">
+        Save Changes
+      </button>
+    </form>
+  );
+}
+```
+
+---
+
+## 📐 5. Reading Auth in a Shared Layout
+
+Place `getUser()` in a layout file so every nested page can receive user data without re-fetching:
+
+```tsx
+// app/(app)/layout.tsx
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+const { getUser } = createServerHelpers(auth);
+
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const user = await getUser();
+
+  if (!user) redirect("/sign-in");
+
+  return (
+    <div className="min-h-screen flex">
+      <aside className="w-64 border-r p-6">
+        <div className="flex items-center gap-3 mb-8">
+          <img
+            src={user.image ?? "/default-avatar.png"}
+            alt="avatar"
+            className="w-8 h-8 rounded-full"
+          />
+          <div>
+            <p className="font-medium text-sm">{user.name}</p>
+            <p className="text-xs text-gray-500">{user.email}</p>
+          </div>
+        </div>
+        <nav className="space-y-1">
+          <a href="/dashboard" className="block p-2 rounded hover:bg-gray-100">Dashboard</a>
+          <a href="/settings" className="block p-2 rounded hover:bg-gray-100">Settings</a>
+        </nav>
+      </aside>
+      <main className="flex-1 p-8">{children}</main>
+    </div>
+  );
+}
+```
+
+---
+
+## 🔗 6. Integration with tRPC
+
+When using tRPC with BolkAuth, create a context factory that reads the session:
+
+```ts
+// server/trpc.ts
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+import { initTRPC, TRPCError } from "@trpc/server";
+import { type NextRequest } from "next/server";
+
+const { getUser } = createServerHelpers(auth);
+
+export async function createTRPCContext({ req }: { req: NextRequest }) {
+  const user = await getUser();
+  return { user };
+}
+
+const t = initTRPC.context<typeof createTRPCContext>().create();
+
+// Protected procedure middleware
+const isAuthed = t.middleware(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({ ctx: { user: ctx.user } });
+});
+
+export const router = t.router;
+export const publicProcedure = t.procedure;
+export const protectedProcedure = t.procedure.use(isAuthed);
+```
+
+```ts
+// server/routers/user.ts
+import { protectedProcedure, router } from "../trpc";
+import { z } from "zod";
+
+export const userRouter = router({
+  me: protectedProcedure.query(({ ctx }) => {
+    return ctx.user;
+  }),
+
+  updateName: protectedProcedure
+    .input(z.object({ name: z.string().min(2) }))
+    .mutation(async ({ ctx, input }) => {
+      // update via adapter or directly via db
+      return { success: true };
+    }),
+});
+```
+
+---
+
+## 🌐 7. Deploying to Vercel
+
+Set the following environment variables in your Vercel project dashboard:
+
+```bash
+BOLKAUTH_SECRET=<your-32-char-secret>
+DATABASE_URL=<your-neon-or-supabase-postgres-url>
+GITHUB_CLIENT_ID=<from-github-oauth-app>
+GITHUB_CLIENT_SECRET=<from-github-oauth-app>
+GOOGLE_CLIENT_ID=<from-google-cloud-console>
+GOOGLE_CLIENT_SECRET=<from-google-cloud-console>
+NEXT_PUBLIC_APP_URL=https://yourapp.vercel.app
+```
+
+> **OAuth Callback URLs**: Make sure your OAuth provider settings include:
+> - GitHub: `https://yourapp.vercel.app/api/auth/callback/github`
+> - Google: `https://yourapp.vercel.app/api/auth/callback/google`

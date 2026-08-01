@@ -1,6 +1,6 @@
 {
   "name": "@bolkauth/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Core framework-agnostic auth engine for BolkAuth",
   "license": "MIT",
   "repository": {

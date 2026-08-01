@@ -1,0 +1,429 @@
+---
+title: Email One-Time Password (OTP)
+description: Passwordless authentication via 6-digit email codes — configuration, endpoints, Resend/Nodemailer templates, and the headless useOTP hook.
+---
+
+**BolkAuth** supports passwordless authentication using **Email One-Time Passwords (OTP)**. Users receive a cryptographically generated 6-digit code sent to their email address, valid for 10 minutes, which creates or signs them into their account upon verification.
+
+OTP is an excellent alternative or addition to magic links — it works across all email clients without link pre-fetching issues (such as Gmail or Outlook security scanners) and provides a fast, native mobile experience.
+
+---
+
+## ⚙️ Configuration Reference
+
+Enable and customize OTP behavior by passing `otp` and `email.sendOTP` in `createBolkAuth`:
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+  email: {
+    sendOTP: async ({ email, code, expiresAt }) => {
+      await resend.emails.send({
+        from: "Auth <auth@example.com>",
+        to: email,
+        subject: `${code} is your sign-in code`,
+        html: `<p>Your verification code is <strong>${code}</strong>. It expires in 10 minutes.</p>`,
+      });
+    },
+  },
+  otp: {
+    expiresIn: 600,       // 10 minutes (in seconds)
+    codeLength: 6,        // 4, 6, or 8 digits
+    maxAttempts: 5,       // Max invalid attempts before code invalidation
+    onRateLimitExceeded: async (email) => {
+      console.warn(`Rate limit exceeded for ${email}`);
+    },
+  },
+});
+```
+
+### `OTPConfig` Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `expiresIn` | `number` | `600` | How long (in seconds) the OTP code is valid. Default is 10 minutes (NIST SP 800-63B recommendation). |
+| `codeLength` | `4 \| 6 \| 8` | `6` | Number of digits in the generated numeric code. |
+| `maxAttempts` | `number` | `5` | Maximum failed verification attempts before the token is invalidated. |
+| `onRateLimitExceeded` | `(email: string) => Promise<void>` | `undefined` | Optional callback triggered when max attempts are exceeded. |
+
+---
+
+## 🌐 API Endpoint Reference
+
+BolkAuth automatically registers two REST endpoints for OTP management:
+
+### 1. `POST /api/auth/otp/send`
+
+Generates a cryptographically random code (`crypto.getRandomValues`), stores SHA-256 hash in the `VerificationToken` table, and invokes `config.email.sendOTP()`.
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "data": {
+    "success": true,
+    "expiresAt": "2026-08-01T12:10:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` (`invalid_email`): Invalid email format.
+- `500 Internal Server Error` (`otp_not_configured`): `config.email.sendOTP` is missing.
+
+---
+
+### 2. `POST /api/auth/otp/verify`
+
+Verifies the numeric code against the stored SHA-256 hash, creates or updates the user account, marks `emailVerified`, invalidates the token (one-time use), and issues a session cookie.
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com",
+  "code": "482901"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "data": {
+    "user": {
+      "id": "usr_123456",
+      "email": "user@example.com",
+      "emailVerified": "2026-08-01T12:00:00.000Z"
+    },
+    "verified": true
+  }
+}
+```
+
+Headers set: `Set-Cookie: bolkauth.session=...; HttpOnly; SameSite=Lax; Path=/`
+
+**Error Responses:**
+
+- `400 Bad Request` (`invalid_otp`): Invalid code format (whitespace-sanitized automatically).
+- `401 Unauthorized` (`invalid_otp`): Code is incorrect, expired, or already used.
+
+---
+
+## ✉️ Email Provider Integration Examples
+
+BolkAuth delegates email sending to your function, maintaining zero third-party SDK dependencies.
+
+### Resend Example
+
+```ts
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const auth = createBolkAuth({
+  // ...other auth config
+  email: {
+    sendOTP: async ({ email, code, expiresAt }) => {
+      const { error } = await resend.emails.send({
+        from: "Acme Auth <noreply@acme.com>",
+        to: [email],
+        subject: `${code} is your Acme verification code`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
+            <h2>Verification Code</h2>
+            <p>Your one-time pass-code is:</p>
+            <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; padding: 16px; background: #f4f4f5; text-align: center; border-radius: 8px;">
+              ${code}
+            </div>
+            <p style="color: #666; font-size: 12px; margin-top: 16px;">
+              This code will expire in 10 minutes. If you did not request this, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+
+      if (error) {
+        throw new Error(`Failed to send OTP email: ${error.message}`);
+      }
+    },
+  },
+});
+```
+
+### Nodemailer (SMTP) Example
+
+```ts
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+export const auth = createBolkAuth({
+  // ...other auth config
+  email: {
+    sendOTP: async ({ email, code }) => {
+      await transporter.sendMail({
+        from: '"Acme Auth" <noreply@acme.com>',
+        to: email,
+        subject: `${code} - Your Verification Code`,
+        text: `Your verification code is ${code}. It expires in 10 minutes.`,
+        html: `<p>Your verification code is <strong>${code}</strong>. It expires in 10 minutes.</p>`,
+      });
+    },
+  },
+});
+```
+
+---
+
+## 🔑 `useOTP()` Hook Reference
+
+The `@bolkauth/react` package exports `useOTP()` — a headless two-phase state machine hook (`idle` → `code_sent` → `verified`).
+
+### Hook Interface
+
+```ts
+function useOTP(): UseOTPReturn;
+
+interface UseOTPReturn {
+  /** Current phase of the OTP process */
+  step: "idle" | "code_sent" | "verified";
+
+  /** Target email address after code is requested */
+  email: string | null;
+
+  /** Expiry timestamp of the sent code */
+  expiresAt: Date | null;
+
+  /** Send 6-digit OTP code to the provided email */
+  sendCode: (email: string) => Promise<HookResponse>;
+
+  /** Verify code entered by the user */
+  verifyCode: (code: string) => Promise<HookResponse>;
+
+  /** Reset state machine back to 'idle' */
+  reset: () => void;
+
+  isLoading: boolean;
+  error: BolkAuthError | null;
+}
+```
+
+---
+
+## 🎨 Complete OTP Form Component Example
+
+Here is a production-grade 6-digit input component supporting auto-focus, paste handling, countdown timer, and error display:
+
+```tsx
+"use client";
+
+import { useOTP } from "@bolkauth/react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+
+export function OTPAuthForm() {
+  const router = useRouter();
+  const { step, email, expiresAt, sendCode, verifyCode, reset, isLoading, error } = useOTP();
+
+  const [inputEmail, setInputEmail] = useState("");
+  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Expiry countdown timer
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+      setTimeLeft(remaining);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  // Step 1: Send OTP
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await sendCode(inputEmail);
+    if (!res.error) {
+      setDigits(["", "", "", "", "", ""]);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+    }
+  };
+
+  // Handle digit inputs
+  const handleDigitChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+
+    const newDigits = [...digits];
+    newDigits[index] = value.slice(-1);
+    setDigits(newDigits);
+
+    // Auto advance focus
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Auto submit on last digit
+    if (newDigits.every((d) => d !== "")) {
+      handleVerify(newDigits.join(""));
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").trim().replace(/\D/g, "").slice(0, 6);
+    if (pasted.length === 6) {
+      const newDigits = pasted.split("");
+      setDigits(newDigits);
+      handleVerify(pasted);
+    }
+  };
+
+  // Step 2: Verify OTP
+  const handleVerify = async (code: string) => {
+    const res = await verifyCode(code);
+    if (!res.error) {
+      router.push("/dashboard");
+      router.refresh();
+    }
+  };
+
+  return (
+    <div className="max-w-sm mx-auto p-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      {step === "idle" ? (
+        <form onSubmit={handleSendEmail} className="space-y-4">
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Sign in with OTP</h2>
+          <p className="text-sm text-zinc-500">Enter your email to receive a 6-digit login code.</p>
+
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/50 rounded-lg">
+              {error.message}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email Address</label>
+            <input
+              type="email"
+              required
+              value={inputEmail}
+              onChange={(e) => setInputEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2 px-4 bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {isLoading ? "Sending Code..." : "Send Verification Code"}
+          </button>
+        </form>
+      ) : (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Enter Security Code</h2>
+          <p className="text-sm text-zinc-500">
+            We sent a 6-digit code to <span className="font-medium text-zinc-900 dark:text-zinc-100">{email}</span>.
+          </p>
+
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/50 rounded-lg">
+              {error.message}
+            </div>
+          )}
+
+          <div className="flex justify-between gap-2 my-4" onPaste={handlePaste}>
+            {digits.map((digit, idx) => (
+              <input
+                key={idx}
+                ref={(el) => { inputRefs.current[idx] = el; }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleDigitChange(idx, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(idx, e)}
+                className="w-11 h-12 text-center text-lg font-bold border border-zinc-300 dark:border-zinc-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+              />
+            ))}
+          </div>
+
+          {timeLeft !== null && (
+            <p className="text-xs text-center text-zinc-500">
+              Code expires in{" "}
+              <span className="font-mono font-medium">
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
+              </span>
+            </p>
+          )}
+
+          <div className="flex items-center justify-between text-xs pt-2">
+            <button
+              onClick={() => sendCode(email!)}
+              disabled={isLoading}
+              className="text-zinc-600 dark:text-zinc-400 hover:underline font-medium"
+            >
+              Resend Code
+            </button>
+
+            <button
+              onClick={reset}
+              className="text-zinc-500 hover:underline"
+            >
+              Change Email
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 🩺 Troubleshooting
+
+### "OTP email sending is not configured" (`otp_not_configured`)
+Ensure `email.sendOTP` is defined in your `createBolkAuth({ ... })` configuration options.
+
+### Code Verification Fails (`invalid_otp`)
+- Check if the code has exceeded `expiresIn` window (default: 600 seconds).
+- Ensure the user hasn't exceeded `maxAttempts` (default: 5).
+- OTP codes are strictly one-time use; once verified, the token is permanently consumed.

@@ -5,6 +5,7 @@ function createMockAdapter(): BolkAuthAdapter {
   const users = new Map<string, any>();
   const sessions = new Map<string, any>();
   const metadata = new Map<string, any>();
+  const verificationTokens = new Map<string, any>();
 
   return {
     async createUser(data) {
@@ -71,9 +72,17 @@ function createMockAdapter(): BolkAuthAdapter {
       return { id: 'acc_1', ...data, createdAt: new Date(), updatedAt: new Date() };
     },
     async findAccountByProvider() { return null; },
-    async createVerificationToken(data) { return { ...data, createdAt: new Date() }; },
-    async findVerificationToken() { return null; },
-    async deleteVerificationToken() {},
+    async createVerificationToken(data) {
+      const vt = { ...data, createdAt: new Date() };
+      verificationTokens.set(`${data.identifier}:${data.token}`, vt);
+      return vt;
+    },
+    async findVerificationToken(identifier, token) {
+      return verificationTokens.get(`${identifier}:${token}`) ?? null;
+    },
+    async deleteVerificationToken(identifier, token) {
+      verificationTokens.delete(`${identifier}:${token}`);
+    },
     async getUserMetadata(userId, key) { return metadata.get(`${userId}:${key}`) ?? null; },
     async updateUserMetadata(userId, key, value) {
       const meta = { userId, key, value, createdAt: new Date(), updatedAt: new Date() };
@@ -210,3 +219,139 @@ describe('BolkAuth Engine', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('OTP Authentication', () => {
+  let auth: ReturnType<typeof createBolkAuth>;
+  let sentOTPs: { email: string; code: string; expiresAt: Date }[] = [];
+
+  beforeEach(() => {
+    sentOTPs = [];
+    auth = createBolkAuth({
+      adapter: createMockAdapter(),
+      secret: 'test_secret_key_minimum_32_characters_long_12345',
+      email: {
+        sendOTP: async (params) => { sentOTPs.push(params); },
+      },
+      otp: { expiresIn: 600, codeLength: 6, maxAttempts: 5 },
+    });
+  });
+
+  it('generates and sends a 6-digit OTP', async () => {
+    const req = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'otp@bolkauth.dev' }),
+    });
+    const res = await auth.handleRequest(req);
+    expect(res.status).toBe(200);
+    expect(sentOTPs).toHaveLength(1);
+    expect(sentOTPs[0].code).toMatch(/^\d{6}$/);
+    expect(sentOTPs[0].email).toBe('otp@bolkauth.dev');
+  });
+
+  it('verifies correct OTP and returns a session cookie', async () => {
+    // Send OTP
+    const sendReq = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'verify@bolkauth.dev' }),
+    });
+    await auth.handleRequest(sendReq);
+    const { code } = sentOTPs[0];
+
+    // Verify OTP
+    const verifyReq = new Request('http://localhost/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'verify@bolkauth.dev', code }),
+    });
+    const res = await auth.handleRequest(verifyReq);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.verified).toBe(true);
+    expect(body.data.user.email).toBe('verify@bolkauth.dev');
+    expect(body.data.user.emailVerified).not.toBeNull();
+    const cookie = res.headers.get('Set-Cookie');
+    expect(cookie).toMatch(/bolkauth\.session=([^;]+)/);
+  });
+
+  it('rejects a wrong OTP code', async () => {
+    const sendReq = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'wrong@bolkauth.dev' }),
+    });
+    await auth.handleRequest(sendReq);
+
+    const verifyReq = new Request('http://localhost/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'wrong@bolkauth.dev', code: '000000' }),
+    });
+    const res = await auth.handleRequest(verifyReq);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.code).toBe('invalid_otp');
+  });
+
+  it('is one-time use — second verify with same code fails', async () => {
+    const sendReq = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'onetime@bolkauth.dev' }),
+    });
+    await auth.handleRequest(sendReq);
+    const { code } = sentOTPs[0];
+
+    const verify = (c: string) =>
+      auth.handleRequest(
+        new Request('http://localhost/otp/verify', {
+          method: 'POST',
+          body: JSON.stringify({ email: 'onetime@bolkauth.dev', code: c }),
+        })
+      );
+
+    const first = await verify(code);
+    expect(first.status).toBe(200);
+
+    const second = await verify(code);
+    expect(second.status).toBe(401); // token already consumed
+  });
+
+  it('returns error when sendOTP is not configured', async () => {
+    const unconfiguredAuth = createBolkAuth({
+      adapter: createMockAdapter(),
+      secret: 'test_secret_key_minimum_32_characters_long_12345',
+    });
+    const req = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@bolkauth.dev' }),
+    });
+    const res = await unconfiguredAuth.handleRequest(req);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error.code).toBe('otp_not_configured');
+  });
+
+  it('rejects invalid email in sendOTP', async () => {
+    const req = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'not-an-email' }),
+    });
+    const res = await auth.handleRequest(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('sanitizes OTP code with whitespace', async () => {
+    const sendReq = new Request('http://localhost/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'trim@bolkauth.dev' }),
+    });
+    await auth.handleRequest(sendReq);
+    const { code } = sentOTPs[0];
+
+    // User pastes code with a space in the middle (e.g., "123 456")
+    const spacedCode = code.slice(0, 3) + ' ' + code.slice(3);
+    const verifyReq = new Request('http://localhost/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'trim@bolkauth.dev', code: spacedCode }),
+    });
+    const res = await auth.handleRequest(verifyReq);
+    expect(res.status).toBe(200);
+  });
+});
+

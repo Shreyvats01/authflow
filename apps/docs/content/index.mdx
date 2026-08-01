@@ -1,0 +1,277 @@
+---
+title: Getting Started
+description: High-performance, self-hosted, type-safe authentication library for Next.js & React.
+---
+
+**BolkAuth** is a modern, developer-first authentication library for TypeScript applications. It gives you a Clerk-like developer experience with headless React hooks and Next.js App Router integrations — while letting you **own your database and infrastructure completely**.
+
+---
+
+## ✨ What You Get
+
+| Feature | Details |
+|---|---|
+| 🔐 Web Crypto hashing | PBKDF2 (100k iterations) — no native dependencies |
+| 🎟️ Stateless JWT sessions | HTTP-only, SameSite=Lax cookies signed with HMAC-SHA256 |
+| 🔑 Headless React hooks | `useSignIn`, `useSignUp`, `useUser`, `useOAuth`, `useOnboarding` |
+| 🖥️ Next.js App Router | Route Handlers, Edge Middleware, Server Components & Server Actions |
+| 🗄️ Pluggable adapters | Official Drizzle ORM & Prisma adapters, or bring your own |
+| 🧭 Onboarding FSM | Built-in multi-step onboarding state machine with persistence |
+| 📡 Cross-tab sync | Browser `BroadcastChannel` keeps auth state consistent across tabs |
+| 🛠️ CLI scaffolding | `bolkauth init` → interactive setup in under 2 minutes |
+
+---
+
+## ⚖️ How BolkAuth Compares
+
+| Feature | BolkAuth | Clerk | NextAuth | Auth.js |
+|---|---|---|---|---|
+| Self-hosted / own DB | ✅ | ❌ (SaaS) | ✅ | ✅ |
+| Full TypeScript types | ✅ | ✅ | ⚠️ Partial | ⚠️ Partial |
+| Headless React hooks | ✅ | ✅ | ❌ | ❌ |
+| Built-in onboarding FSM | ✅ | ❌ | ❌ | ❌ |
+| Web Crypto only (no bcrypt) | ✅ | ❌ | ❌ | ❌ |
+| Edge Runtime compatible | ✅ | ✅ | ⚠️ | ⚠️ |
+| Cross-tab session sync | ✅ | ✅ | ❌ | ❌ |
+| Pricing | Free / OSS | $25+/mo | Free | Free |
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Browser (Client)                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │  useSignIn() │  │   useUser()  │  │  BroadcastChannel    │  │
+│  │  useSignUp() │  │   useAuth()  │  │  (cross-tab sync)    │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────────────┘  │
+│         │                 │                                       │
+│         └────────────┬────┘                                      │
+└──────────────────────┼────────────────────────────────────────── ┘
+                       │ HTTP (JWT cookie)
+┌──────────────────────▼────────────────────────────────────────── ┐
+│                     Next.js App Router                            │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │          bolkAuthMiddleware (Edge Runtime)                │   │
+│  │   • checks session cookie                                 │   │
+│  │   • redirects unauthenticated users                       │   │
+│  │   • redirects un-onboarded users                          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │     /api/auth/[...bolkauth]  (Route Handler)              │   │
+│  │     bolkAuthHandler(auth) → auto-registers all routes     │   │
+│  └──────────────────────┬───────────────────────────────────┘   │
+└─────────────────────────┼──────────────────────────────────────── ┘
+                          │
+┌─────────────────────────▼──────────────────────────────────────── ┐
+│                   @bolkauth/core Engine                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ PBKDF2 Hash  │  │  JWT Factory │  │   Onboarding FSM     │   │
+│  │  (WebCrypto) │  │  (HMAC-256)  │  │  NOT_STARTED →       │   │
+│  └──────────────┘  └──────────────┘  │  IN_PROGRESS →       │   │
+│  ┌──────────────┐  ┌──────────────┐  │  COMPLETE            │   │
+│  │ OAuth Engine │  │  BolkAdapter │  └──────────────────────┘   │
+│  │  (PKCE flow) │  │  Interface   │                              │
+│  └──────────────┘  └──────┬───────┘                             │
+└─────────────────────────── ┼──────────────────────────────────────┘
+                             │
+         ┌───────────────────┴────────────────────┐
+         │                                         │
+┌────────▼────────┐                    ┌───────────▼────────┐
+│  Drizzle Adapter│                    │   Prisma Adapter   │
+│  (PostgreSQL)   │                    │   (PostgreSQL)     │
+└─────────────────┘                    └────────────────────┘
+```
+
+---
+
+## ⚡ Quickstart in 5 Steps
+
+### 1. Install Dependencies
+
+```bash
+pnpm add @bolkauth/core @bolkauth/nextjs @bolkauth/react @bolkauth/adapter-drizzle
+```
+
+### 2. Configure the Auth Engine
+
+Create `lib/auth.ts` to instantiate your BolkAuth engine:
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle";
+import { db } from "./db";
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+  session: {
+    maxAge: 60 * 60 * 24 * 30, // 30 days in seconds
+    cookieName: "bolkauth.session",
+  },
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: 8,
+  },
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    },
+  },
+  onboarding: {
+    enabled: true,
+    requiredForAccess: true,
+    redirectUrl: "/onboarding",
+  },
+});
+```
+
+### 3. Expose the API Route Handler
+
+Create `app/api/auth/[...bolkauth]/route.ts`:
+
+```ts
+import { bolkAuthHandler } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const handlers = bolkAuthHandler(auth);
+
+export const GET  = handlers.GET;
+export const POST = handlers.POST;
+export const PATCH = handlers.PATCH;
+export const DELETE = handlers.DELETE;
+```
+
+### 4. Wrap Your App with the React Provider
+
+Update `app/layout.tsx`:
+
+```tsx
+import { BolkAuthProvider } from "@bolkauth/react";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <BolkAuthProvider config={{ baseURL: "/api/auth" }}>
+          {children}
+        </BolkAuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### 5. Protect Routes via Middleware
+
+Add `middleware.ts` at the project root:
+
+```ts
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export default bolkAuthMiddleware(auth, {
+  signInUrl: "/sign-in",
+  onboardingUrl: "/onboarding",
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
+});
+
+export const config = {
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+};
+```
+
+---
+
+## 🌍 Environment Variables Reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `BOLKAUTH_SECRET` | ✅ | Min 32-character secret for HMAC-SHA256 signing. Generate: `openssl rand -base64 32` |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string: `postgresql://user:pass@host:5432/db` |
+| `GITHUB_CLIENT_ID` | OAuth | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | OAuth | GitHub OAuth App client secret |
+| `GOOGLE_CLIENT_ID` | OAuth | Google Cloud OAuth 2.0 client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth | Google Cloud OAuth 2.0 client secret |
+| `NEXT_PUBLIC_APP_URL` | Deploy | Public URL of your app (used in OAuth callback URLs) |
+
+> **Generating a secure secret:**
+> ```bash
+> openssl rand -base64 32
+> # → outputs something like: xK9mP2qR8sT4vW7yZ1bC3dE5fG6hJ0kL
+> ```
+
+---
+
+## 🏛️ Monorepo Package Reference
+
+| Package | npm | Description |
+|---|---|---|
+| `@bolkauth/core` | [![npm](https://img.shields.io/npm/v/@bolkauth/core)](https://npm.im/@bolkauth/core) | Zero-dependency Web Crypto engine — JWTs, hashing, OAuth, state machines |
+| `@bolkauth/react` | [![npm](https://img.shields.io/npm/v/@bolkauth/react)](https://npm.im/@bolkauth/react) | Headless hooks (`useSignIn`, `useSignUp`, `useUser`, `useOAuth`) & cross-tab sync |
+| `@bolkauth/nextjs` | [![npm](https://img.shields.io/npm/v/@bolkauth/nextjs)](https://npm.im/@bolkauth/nextjs) | Edge middleware, Next.js 14+ Route Handlers, Server Component helpers |
+| `@bolkauth/adapter-drizzle` | [![npm](https://img.shields.io/npm/v/@bolkauth/adapter-drizzle)](https://npm.im/@bolkauth/adapter-drizzle) | PostgreSQL table definitions and adapter logic for Drizzle ORM |
+| `@bolkauth/adapter-prisma` | [![npm](https://img.shields.io/npm/v/@bolkauth/adapter-prisma)](https://npm.im/@bolkauth/adapter-prisma) | Schema definitions and type-safe adapter for Prisma ORM |
+| `@bolkauth/cli` | [![npm](https://img.shields.io/npm/v/@bolkauth/cli)](https://npm.im/@bolkauth/cli) | Scaffolding wizard (`bolkauth init`, `add`, `generate`) |
+
+---
+
+## 🧭 Explore Documentation Topics
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8 not-prose">
+  <a href="/core-concepts" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">⚙️ Core Concepts</h3>
+    <p className="text-sm text-fd-muted-foreground">Full config reference, JWT anatomy, PBKDF2 deep-dive, FSM diagrams, error codes.</p>
+  </a>
+
+  <a href="/nextjs-integration" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🖥️ Next.js Integration</h3>
+    <p className="text-sm text-fd-muted-foreground">Route Handlers, Edge Middleware, Server Actions, RSC patterns & endpoint catalog.</p>
+  </a>
+
+  <a href="/react-hooks" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🔑 Headless React Hooks</h3>
+    <p className="text-sm text-fd-muted-foreground">All 6 hooks with full TypeScript interfaces, loading states, and error handling.</p>
+  </a>
+
+  <a href="/otp" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">📩 Email OTP</h3>
+    <p className="text-sm text-fd-muted-foreground">Passwordless 6-digit code authentication, Resend/Nodemailer templates, and useOTP hook.</p>
+  </a>
+
+  <a href="/adapters" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🗄️ Database Adapters</h3>
+    <p className="text-sm text-fd-muted-foreground">Full Drizzle & Prisma schemas, migration guides, custom adapter interface.</p>
+  </a>
+
+  <a href="/cli" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🛠️ CLI Scaffolding</h3>
+    <p className="text-sm text-fd-muted-foreground">Interactive wizard, generated file contents, and CI/CD integration.</p>
+  </a>
+
+  <a href="/examples" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🎨 Full Code Examples</h3>
+    <p className="text-sm text-fd-muted-foreground">8 production-ready recipes: sign-in, onboarding wizard, protected dashboard, and more.</p>
+  </a>
+
+  <a href="/security-reference" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🔒 Security Reference</h3>
+    <p className="text-sm text-fd-muted-foreground">Threat model, CSRF protection, cookie security, OAuth PKCE flow, and hardening tips.</p>
+  </a>
+
+  <a href="/custom-adapter" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🔌 Custom Adapter Guide</h3>
+    <p className="text-sm text-fd-muted-foreground">Implement the BolkAuthAdapter interface for any database or ORM.</p>
+  </a>
+
+  <a href="/troubleshooting" className="p-5 rounded-xl border border-fd-border bg-fd-card hover:bg-fd-accent transition-all block group">
+    <h3 className="text-base font-bold text-fd-foreground mb-1 group-hover:text-fd-primary">🩺 Troubleshooting</h3>
+    <p className="text-sm text-fd-muted-foreground">Common errors, debugging tips, and migration guides.</p>
+  </a>
+</div>

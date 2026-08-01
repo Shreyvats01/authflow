@@ -1,20 +1,49 @@
 import { RootProvider } from 'fumadocs-ui/provider';
+import { DocsLayout } from 'fumadocs-ui/layout';
+import { source } from '@/lib/source';
 import 'fumadocs-ui/style.css';
 import './globals.css';
-import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { cn } from "@/lib/utils";
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans'
-});
+export const metadata = {
+  title: {
+    default: 'BolkAuth Docs',
+    template: '%s — BolkAuth',
+  },
+  description:
+    'High-performance, self-hosted, type-safe authentication for TypeScript & Next.js.',
+};
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={cn(inter.className, "font-sans", inter.variable)} suppressHydrationWarning>
-      <body className="flex flex-col min-h-screen">
-        <RootProvider>{children}</RootProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="flex flex-col min-h-screen font-sans">
+        <RootProvider>
+          <DocsLayout
+            tree={source.pageTree}
+            nav={{
+              title: (
+                <span className="flex items-center gap-2 font-bold text-base">
+                  <span className="text-xl">⚡</span> BolkAuth
+                </span>
+              ),
+            }}
+            links={[
+              {
+                text: 'GitHub',
+                url: 'https://github.com/Shreyvats01/bolkauth',
+                external: true,
+              },
+              {
+                text: 'npm',
+                url: 'https://www.npmjs.com/package/@bolkauth/core',
+                external: true,
+              },
+            ]}
+          >
+            {children}
+          </DocsLayout>
+        </RootProvider>
       </body>
     </html>
   );

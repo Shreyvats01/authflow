@@ -1,3 +1,7 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
 
 @tailwind base;
 @tailwind components;
@@ -9,6 +13,7 @@
     --font-sans: var(--font-sans)
   }
   :root {
+    --font-sans: 'Inter', sans-serif;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);

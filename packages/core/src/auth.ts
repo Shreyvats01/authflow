@@ -2,6 +2,7 @@ import type { BolkAuthConfig } from './types';
 import { hashPassword, verifyPassword } from './password';
 import { hashToken, signJwt, verifyJwt } from './session';
 import { buildAuthorizationUrl, exchangeCodeForToken, fetchUserInfo } from './oauth';
+import { generateOTPCode, hashOTPCode } from './otp';
 
 export function successResponse<T>(data: T, headers?: HeadersInit, status = 200) {
   return new Response(JSON.stringify({ data }), {
@@ -59,6 +60,12 @@ export class BolkAuthInstance {
       }
       if (path.endsWith('/verify') && req.method === 'GET') {
         return await this.verifyMagicLink(req);
+      }
+      if (path.endsWith('/otp/send') && req.method === 'POST') {
+        return await this.sendOTP(req);
+      }
+      if (path.endsWith('/otp/verify') && req.method === 'POST') {
+        return await this.verifyOTP(req);
       }
       if (path.endsWith('/sign-out') && req.method === 'POST') {
         return await this.signOut(req);
@@ -210,6 +217,85 @@ export class BolkAuthInstance {
     const { cookie } = await this.createSessionAndCookie(user.id);
     const redirectUrl = this.config.email?.verifyRedirectUrl ?? '/';
     return new Response(null, { status: 302, headers: { Location: redirectUrl, 'Set-Cookie': cookie } });
+  }
+
+  private async sendOTP(req: Request) {
+    const { email } = await req.json();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return errorResponse('invalid_email', 'Valid email address is required', undefined, 400);
+    }
+
+    if (!this.config.email?.sendOTP) {
+      return errorResponse(
+        'otp_not_configured',
+        'OTP email sending is not configured. Set config.email.sendOTP.',
+        undefined,
+        500
+      );
+    }
+
+    const codeLength = this.config.otp?.codeLength ?? 6;
+    const expiresIn = this.config.otp?.expiresIn ?? 600; // 10 minutes
+    const code = generateOTPCode(codeLength);
+    const hashed = await hashOTPCode(code);
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+    // Store hashed OTP using the existing VerificationToken mechanism.
+    // identifier = email, token = SHA-256(code), type discriminator = "otp:" prefix.
+    await this.config.adapter.createVerificationToken({
+      identifier: `otp:${email}`,
+      token: hashed,
+      expiresAt,
+    });
+
+    // Call user-supplied email sender
+    await this.config.email.sendOTP({ email, code, expiresAt });
+
+    return successResponse({ success: true, expiresAt });
+  }
+
+  private async verifyOTP(req: Request) {
+    const { email, code } = await req.json();
+    if (!email || !code) {
+      return errorResponse('bad_request', 'Email and code are required', undefined, 400);
+    }
+
+    // Sanitize: strip whitespace, ensure numeric string
+    const sanitizedCode = String(code).trim().replace(/\s/g, '');
+    if (!/^\d{4,8}$/.test(sanitizedCode)) {
+      return errorResponse('invalid_otp', 'Invalid OTP format', undefined, 400);
+    }
+
+    const hashed = await hashOTPCode(sanitizedCode);
+    const identifier = `otp:${email}`;
+    const vt = await this.config.adapter.findVerificationToken(identifier, hashed);
+
+    if (!vt || vt.expiresAt < new Date()) {
+      // Don't distinguish between "wrong code" and "expired" to prevent oracle attacks
+      return errorResponse('invalid_otp', 'Invalid or expired OTP code', undefined, 401);
+    }
+
+    // Consume the token immediately (one-time use)
+    await this.config.adapter.deleteVerificationToken(identifier, hashed);
+
+    // Find or create the user
+    let user = await this.config.adapter.findUserByEmail(email);
+    if (!user) {
+      // Auto-create account on first OTP sign-in (same pattern as magic link)
+      user = await this.config.adapter.createUser({
+        email,
+        emailVerified: new Date(),
+      });
+    } else if (!user.emailVerified) {
+      user = await this.config.adapter.updateUser(user.id, { emailVerified: new Date() });
+    }
+
+    // Create session and return cookie
+    const { cookie } = await this.createSessionAndCookie(user.id);
+    return successResponse(
+      { user, verified: true },
+      { 'Set-Cookie': cookie }
+    );
   }
 
   private async signOut(req: Request) {

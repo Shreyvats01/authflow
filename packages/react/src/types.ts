@@ -9,6 +9,8 @@ export type BolkAuthErrorCode =
   | 'weak_password'
   | 'invalid_email'
   | 'network_error'
+  | 'invalid_otp'
+  | 'otp_not_configured'
   | 'unknown_error';
 
 export interface HookResponse<T = any> {

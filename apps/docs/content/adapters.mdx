@@ -1,0 +1,378 @@
+---
+title: Database Adapters
+description: Full Drizzle ORM and Prisma adapter setup with complete schemas, migration commands, connection pooling, and a custom adapter interface guide.
+---
+
+BolkAuth uses a pluggable **adapter pattern** to remain fully ORM-agnostic. The adapter interface abstracts all database operations — you can use the official Drizzle or Prisma adapters, or implement your own for any database or ORM.
+
+---
+
+## 🌧️ Drizzle ORM Adapter
+
+### Installation
+
+```bash
+pnpm add @bolkauth/adapter-drizzle drizzle-orm
+pnpm add -D drizzle-kit
+```
+
+### Full Schema Setup
+
+Import the pre-built table definitions from `@bolkauth/adapter-drizzle`. These export five tables that cover all BolkAuth entities:
+
+```ts
+// db/schema.ts
+export {
+  authUsers,
+  authAccounts,
+  authSessions,
+  authVerificationTokens,
+  authUserMetadata,
+} from "@bolkauth/adapter-drizzle";
+```
+
+**What these tables look like internally:**
+
+```ts
+// Exported from @bolkauth/adapter-drizzle — shown for reference
+import {
+  pgTable, varchar, text, timestamp, boolean, jsonb, primaryKey
+} from "drizzle-orm/pg-core";
+
+export const authUsers = pgTable("auth_users", {
+  id:            varchar("id", { length: 128 }).primaryKey(),
+  email:         varchar("email", { length: 255 }).notNull().unique(),
+  name:          varchar("name", { length: 255 }),
+  image:         text("image"),
+  passwordHash:  text("password_hash"),   // "salt:hash" PBKDF2
+  emailVerified: timestamp("email_verified"),
+  createdAt:     timestamp("created_at").defaultNow().notNull(),
+  updatedAt:     timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const authSessions = pgTable("auth_sessions", {
+  id:        varchar("id", { length: 128 }).primaryKey(),
+  userId:    varchar("user_id", { length: 128 })
+               .notNull()
+               .references(() => authUsers.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const authAccounts = pgTable("auth_accounts", {
+  id:                varchar("id", { length: 128 }).primaryKey(),
+  userId:            varchar("user_id", { length: 128 })
+                       .notNull()
+                       .references(() => authUsers.id, { onDelete: "cascade" }),
+  provider:          varchar("provider", { length: 64 }).notNull(),
+  providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+  accessToken:       text("access_token"),
+  refreshToken:      text("refresh_token"),
+  expiresAt:         timestamp("expires_at"),
+}, (t) => ({
+  providerUnique: primaryKey({ columns: [t.provider, t.providerAccountId] }),
+}));
+
+export const authVerificationTokens = pgTable("auth_verification_tokens", {
+  id:        varchar("id", { length: 128 }).primaryKey(),
+  userId:    varchar("user_id", { length: 128 })
+               .notNull()
+               .references(() => authUsers.id, { onDelete: "cascade" }),
+  token:     varchar("token", { length: 512 }).notNull().unique(),
+  type:      varchar("type", { length: 32 }).notNull(),  // "email_verify" | "password_reset"
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const authUserMetadata = pgTable("auth_user_metadata", {
+  id:              varchar("id", { length: 128 }).primaryKey(),
+  userId:          varchar("user_id", { length: 128 })
+                     .notNull()
+                     .unique()
+                     .references(() => authUsers.id, { onDelete: "cascade" }),
+  onboardingState: varchar("onboarding_state", { length: 32 }).default("NOT_STARTED"),
+  onboardingData:  jsonb("onboarding_data"),    // merged step data
+  customData:      jsonb("custom_data"),         // arbitrary app data
+  createdAt:       timestamp("created_at").defaultNow().notNull(),
+  updatedAt:       timestamp("updated_at").defaultNow().notNull(),
+});
+```
+
+### Database Client + Adapter Initialization
+
+```ts
+// db/index.ts
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
+  // Recommended for production — see Connection Pooling section below
+  max: 10,
+  idleTimeoutMillis: 30_000,
+});
+
+export const db = drizzle(pool, { schema });
+```
+
+```ts
+// lib/auth.ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle";
+import { db } from "@/db";
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+### Running Migrations
+
+```bash
+# Push schema directly to DB (good for development)
+pnpm drizzle-kit push
+
+# Generate SQL migration files (recommended for production)
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
+```
+
+Add a `drizzle.config.ts` at your project root:
+
+```ts
+// drizzle.config.ts
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./db/schema.ts",
+  out: "./db/migrations",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+### Using with Neon (Serverless PostgreSQL)
+
+```bash
+pnpm add @neondatabase/serverless
+```
+
+```ts
+// db/index.ts
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "./schema";
+
+const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql, { schema });
+```
+
+---
+
+## ◭ Prisma Adapter
+
+### Installation
+
+```bash
+pnpm add @bolkauth/adapter-prisma @prisma/client
+pnpm add -D prisma
+```
+
+### Full Prisma Schema
+
+Add these models to your `prisma/schema.prisma`. If you already have a `User` model, you'll need to merge carefully — see the [Custom Adapter Guide](/custom-adapter) for a migration path.
+
+```prisma
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AuthUser {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  passwordHash  String?   @map("password_hash")
+  emailVerified DateTime? @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  sessions            AuthSession[]
+  accounts            AuthAccount[]
+  verificationTokens  AuthVerificationToken[]
+  metadata            AuthUserMetadata?
+
+  @@map("auth_users")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model AuthAccount {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  provider          String
+  providerAccountId String    @map("provider_account_id")
+  accessToken       String?   @map("access_token")
+  refreshToken      String?   @map("refresh_token")
+  expiresAt         DateTime? @map("expires_at")
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+model AuthVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  type      String   // "email_verify" | "password_reset"
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_verification_tokens")
+}
+
+model AuthUserMetadata {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  onboardingState String   @default("NOT_STARTED") @map("onboarding_state")
+  onboardingData  Json?    @map("onboarding_data")
+  customData      Json?    @map("custom_data")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_user_metadata")
+}
+```
+
+### Generating & Applying Migrations
+
+```bash
+# Generate migration from schema changes
+npx prisma migrate dev --name add_bolkauth_tables
+
+# Apply in production
+npx prisma migrate deploy
+
+# Generate Prisma Client
+npx prisma generate
+```
+
+### Adapter Initialization
+
+```ts
+// lib/auth.ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createPrismaAdapter } from "@bolkauth/adapter-prisma";
+import { PrismaClient } from "@prisma/client";
+
+// Singleton pattern to avoid multiple connections in dev
+const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+
+const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["query"] : [],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+export const auth = createBolkAuth({
+  adapter: createPrismaAdapter(prisma),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+---
+
+## 🔗 Connection Pooling
+
+For production deployments, especially on serverless platforms (Vercel, Cloudflare), use a connection pooler like **PgBouncer** or **Neon Pooled** to avoid exhausting database connections.
+
+### With Neon (recommended for Vercel)
+
+```ts
+// db/index.ts
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "./schema";
+
+// Use the pooled connection string from Neon dashboard
+const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql, { schema });
+```
+
+Set `DATABASE_URL` to the **pooled** connection string (ends with `-pooler.neon.tech`).
+
+### With Supabase
+
+Use the **Transaction mode** connection string from your Supabase project settings:
+
+```
+postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+```
+
+---
+
+## 🔌 Custom Adapter
+
+See the dedicated [Custom Adapter Guide](/custom-adapter) for a full walkthrough of implementing the `BolkAuthAdapter` interface for any database, ORM, or storage backend.
+
+```ts
+// Quick reference — the full BolkAuthAdapter interface
+import type { BolkAuthAdapter } from "@bolkauth/core";
+
+export const myAdapter: BolkAuthAdapter = {
+  // User operations
+  createUser:        async (data) => { /* ... */ },
+  getUserByEmail:    async (email) => { /* ... */ },
+  getUserById:       async (id) => { /* ... */ },
+  updateUser:        async (id, data) => { /* ... */ },
+  deleteUser:        async (id) => { /* ... */ },
+
+  // Session operations
+  createSession:     async (data) => { /* ... */ },
+  getSessionById:    async (id) => { /* ... */ },
+  deleteSession:     async (id) => { /* ... */ },
+  deleteUserSessions: async (userId) => { /* ... */ },
+
+  // OAuth account operations
+  createAccount:          async (data) => { /* ... */ },
+  getAccountByProvider:   async (provider, providerAccountId) => { /* ... */ },
+  deleteAccount:          async (id) => { /* ... */ },
+
+  // Verification tokens
+  createVerificationToken: async (data) => { /* ... */ },
+  getVerificationToken:    async (token) => { /* ... */ },
+  deleteVerificationToken: async (id) => { /* ... */ },
+
+  // User metadata (onboarding)
+  createUserMetadata:  async (userId) => { /* ... */ },
+  getUserMetadata:     async (userId) => { /* ... */ },
+  updateUserMetadata:  async (userId, data) => { /* ... */ },
+};
+```

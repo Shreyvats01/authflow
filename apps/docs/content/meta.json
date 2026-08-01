@@ -1,0 +1,16 @@
+{
+  "title": "BolkAuth",
+  "pages": [
+    "index",
+    "core-concepts",
+    "nextjs-integration",
+    "react-hooks",
+    "otp",
+    "adapters",
+    "custom-adapter",
+    "cli",
+    "examples",
+    "security-reference",
+    "troubleshooting"
+  ]
+}
