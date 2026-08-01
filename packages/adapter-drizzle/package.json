@@ -1,11 +1,12 @@
 {
   "name": "@bolkauth/adapter-drizzle",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Drizzle ORM adapter for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shreyvats01/bolkauth"
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/adapter-drizzle"
   },
   "publishConfig": {
     "access": "public"

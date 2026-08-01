@@ -1,11 +1,12 @@
 {
   "name": "@bolkauth/adapter-prisma",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prisma ORM adapter for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shreyvats01/bolkauth"
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/adapter-prisma"
   },
   "publishConfig": {
     "access": "public"

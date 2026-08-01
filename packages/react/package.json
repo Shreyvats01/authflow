@@ -1,11 +1,12 @@
 {
   "name": "@bolkauth/react",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Headless React hooks and provider for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shreyvats01/bolkauth"
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/react"
   },
   "publishConfig": {
     "access": "public"

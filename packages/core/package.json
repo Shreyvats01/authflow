@@ -1,11 +1,12 @@
 {
   "name": "@bolkauth/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Core framework-agnostic auth engine for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shreyvats01/bolkauth"
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/core"
   },
   "publishConfig": {
     "access": "public"

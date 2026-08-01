@@ -1,11 +1,12 @@
 {
   "name": "@bolkauth/nextjs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Next.js App Router handlers and middleware for BolkAuth",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shreyvats01/bolkauth"
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/nextjs"
   },
   "publishConfig": {
     "access": "public"
