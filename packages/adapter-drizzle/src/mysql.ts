@@ -45,12 +45,12 @@ export const authAccounts = mysqlTable(
     id_token: text("id_token"),
     session_state: varchar("session_state", { length: 255 }),
   },
-  (account) => [
-    primaryKey({
+  (account) => ({
+    compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-    index("auth_accounts_user_id_idx").on(account.userId),
-  ]
+    userIdIdx: index("auth_accounts_user_id_idx").on(account.userId),
+  })
 );
 
 export const authSessions = mysqlTable(
@@ -62,9 +62,9 @@ export const authSessions = mysqlTable(
       .references(() => authUsers.id, { onDelete: "cascade" }),
     expires: datetime("expires", { mode: "date" }).notNull(),
   },
-  (session) => [
-    index("auth_sessions_user_id_idx").on(session.userId),
-  ]
+  (session) => ({
+    userIdIdx: index("auth_sessions_user_id_idx").on(session.userId),
+  })
 );
 
 export const authVerificationTokens = mysqlTable(
@@ -74,9 +74,9 @@ export const authVerificationTokens = mysqlTable(
     token: varchar("token", { length: 255 }).notNull(),
     expires: datetime("expires", { mode: "date" }).notNull(),
   },
-  (vt) => [
-    primaryKey({ columns: [vt.identifier, vt.token] }),
-  ]
+  (vt) => ({
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  })
 );
 
 export const authUserMetadata = mysqlTable(
@@ -89,9 +89,9 @@ export const authUserMetadata = mysqlTable(
     key: varchar("key", { length: 255 }).notNull(),
     value: json("value").notNull(),
   },
-  (metadata) => [
-    index("auth_user_metadata_user_id_idx").on(metadata.userId),
-  ]
+  (metadata) => ({
+    userIdIdx: index("auth_user_metadata_user_id_idx").on(metadata.userId),
+  })
 );
 
 export const mysqlSchema = {

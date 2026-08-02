@@ -32,12 +32,12 @@ export const authAccounts = sqliteTable(
     id_token: text("id_token"),
     session_state: text("session_state"),
   },
-  (account) => [
-    primaryKey({
+  (account) => ({
+    compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-    index("auth_accounts_user_id_idx").on(account.userId),
-  ]
+    userIdIdx: index("auth_accounts_user_id_idx").on(account.userId),
+  })
 );
 
 export const authSessions = sqliteTable(
@@ -49,9 +49,9 @@ export const authSessions = sqliteTable(
       .references(() => authUsers.id, { onDelete: "cascade" }),
     expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
   },
-  (session) => [
-    index("auth_sessions_user_id_idx").on(session.userId),
-  ]
+  (session) => ({
+    userIdIdx: index("auth_sessions_user_id_idx").on(session.userId),
+  })
 );
 
 export const authVerificationTokens = sqliteTable(
@@ -61,9 +61,9 @@ export const authVerificationTokens = sqliteTable(
     token: text("token").notNull(),
     expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
   },
-  (vt) => [
-    primaryKey({ columns: [vt.identifier, vt.token] }),
-  ]
+  (vt) => ({
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  })
 );
 
 export const authUserMetadata = sqliteTable(
@@ -76,7 +76,7 @@ export const authUserMetadata = sqliteTable(
     key: text("key").notNull(),
     value: text("value", { mode: "json" }).notNull(),
   },
-  (metadata) => [
-    index("auth_user_metadata_user_id_idx").on(metadata.userId),
-  ]
+  (metadata) => ({
+    userIdIdx: index("auth_user_metadata_user_id_idx").on(metadata.userId),
+  })
 );

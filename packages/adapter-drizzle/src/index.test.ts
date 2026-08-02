@@ -2,7 +2,7 @@ import { describe } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { createDrizzleAdapter } from "./sqlite";
-import { runAdapterTests } from "@bolkauth/core";
+import { runAdapterTests } from "@bolkauth/core/testing";
 
 function setupDatabase() {
   const sqlite = new Database(":memory:");

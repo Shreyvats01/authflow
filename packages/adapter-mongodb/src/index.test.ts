@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runAdapterTests } from "@bolkauth/core";
+import { runAdapterTests } from "@bolkauth/core/testing";
 import { createMongoAdapter, ensureIndexes, COLLECTION_NAMES } from "./index";
 
 class MockCollection {
