@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  emailVerified: Date | null;
+  emailVerified?: Date | null;
   name?: string;
   image?: string;
   password?: string;

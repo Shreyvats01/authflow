@@ -1,21 +1,31 @@
+import { ENCODER, bytesToHex } from './password';
+
+export const HMAC_KEY_CACHE = new Map<string, CryptoKey>();
+
+export async function getHmacKey(secret: string, usage: KeyUsage): Promise<CryptoKey> {
+  const cacheKey = `${secret}:${usage}`;
+  let key = HMAC_KEY_CACHE.get(cacheKey);
+  if (!key) {
+    key = await crypto.subtle.importKey(
+      'raw',
+      ENCODER.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      [usage]
+    );
+    HMAC_KEY_CACHE.set(cacheKey, key);
+  }
+  return key;
+}
+
 export async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
+  const data = ENCODER.encode(token);
   const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  return bytesToHex(new Uint8Array(hash));
 }
 
 export async function signJwt(payload: any, secret: string, expiresIn?: number): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+  const key = await getHmacKey(secret, 'sign');
 
   const header = { alg: 'HS256', typ: 'JWT' };
   const base64Header = btoa(JSON.stringify(header));
@@ -25,7 +35,7 @@ export async function signJwt(payload: any, secret: string, expiresIn?: number):
   const base64Payload = btoa(JSON.stringify(fullPayload));
 
   const data = `${base64Header}.${base64Payload}`;
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
+  const signature = await crypto.subtle.sign('HMAC', key, ENCODER.encode(data));
 
   const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)))
     .replace(/\+/g, '-')
@@ -36,19 +46,13 @@ export async function signJwt(payload: any, secret: string, expiresIn?: number):
 }
 
 export async function verifyJwt(token: string, secret: string): Promise<any> {
-  const [base64Header, base64Payload, base64Signature] = token.split('.');
-  if (!base64Header || !base64Payload || !base64Signature) {
+  const parts = token.split('.');
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
     throw new Error('Invalid token format');
   }
+  const [base64Header, base64Payload, base64Signature] = parts;
 
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
+  const key = await getHmacKey(secret, 'verify');
 
   const data = `${base64Header}.${base64Payload}`;
 
@@ -62,7 +66,7 @@ export async function verifyJwt(token: string, secret: string): Promise<any> {
     sigArray[i] = binarySig.charCodeAt(i);
   }
 
-  const isValid = await crypto.subtle.verify('HMAC', key, sigArray, encoder.encode(data));
+  const isValid = await crypto.subtle.verify('HMAC', key, sigArray, ENCODER.encode(data));
 
   if (!isValid) {
     throw new Error('Invalid signature');

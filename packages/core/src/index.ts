@@ -5,4 +5,4 @@ export * from './password';
 export * from './auth';
 export * from './oauth';
 export * from './otp';
-
+export { timingSafeEqual } from './password';

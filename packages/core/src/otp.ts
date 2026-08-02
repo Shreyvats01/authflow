@@ -1,3 +1,5 @@
+import { ENCODER, bytesToHex } from './password';
+
 /**
  * Generate a cryptographically random N-digit numeric OTP code.
  * Uses crypto.getRandomValues — NOT Math.random().
@@ -19,23 +21,7 @@ export function generateOTPCode(length: 6 | 4 | 8 = 6): string {
  * Identical to the hashToken() used for magic links.
  */
 export async function hashOTPCode(code: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(code);
+  const data = ENCODER.encode(code);
   const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/**
- * Constant-time string comparison to prevent timing attacks.
- * Returns true if a === b, without leaking timing information.
- */
-export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
+  return bytesToHex(new Uint8Array(hash));
 }

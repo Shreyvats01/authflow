@@ -23,10 +23,17 @@ export function errorResponse(
   });
 }
 
-function parseCookie(cookieHeader: string | null, cookieName = 'bolkauth.session') {
+function parseCookie(cookieHeader: string | null, cookieName = 'bolkauth.session'): string | null {
   if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`(^| )${cookieName}=([^;]+)`));
-  return match ? match[2] : null;
+  const targetPrefix = cookieName + '=';
+  const cookies = cookieHeader.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i].trim();
+    if (cookie.startsWith(targetPrefix)) {
+      return cookie.slice(targetPrefix.length);
+    }
+  }
+  return null;
 }
 
 function createSessionCookie(jwt: string, maxAge: number, cookieName = 'bolkauth.session') {
@@ -35,6 +42,43 @@ function createSessionCookie(jwt: string, maxAge: number, cookieName = 'bolkauth
 
 function createClearCookie(cookieName = 'bolkauth.session') {
   return `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+type RouteHandler = (auth: BolkAuthInstance, req: Request) => Promise<Response>;
+
+const ROUTE_MAP = new Map<string, RouteHandler>([
+  ['POST:/sign-up', (auth, req) => (auth as any).signUp(req)],
+  ['POST:/sign-in/email', (auth, req) => (auth as any).signInEmail(req)],
+  ['POST:/sign-in/magic-link', (auth, req) => (auth as any).signInMagicLink(req)],
+  ['GET:/verify', (auth, req) => (auth as any).verifyMagicLink(req)],
+  ['POST:/otp/send', (auth, req) => (auth as any).sendOTP(req)],
+  ['POST:/otp/verify', (auth, req) => (auth as any).verifyOTP(req)],
+  ['POST:/sign-out', (auth, req) => (auth as any).signOut(req)],
+  ['GET:/session', (auth, req) => (auth as any).getSession(req)],
+  ['POST:/user/metadata', (auth, req) => (auth as any).updateMetadata(req)],
+  ['GET:/user/metadata', (auth, req) => (auth as any).getMetadata(req)],
+  ['POST:/onboarding/step', (auth, req) => (auth as any).onboardingStep(req)],
+  ['POST:/onboarding/complete', (auth, req) => (auth as any).onboardingComplete(req)],
+]);
+
+const OAUTH_CALLBACK_REGEX = /\/oauth\/([^/]+)\/callback$/;
+const OAUTH_REDIRECT_REGEX = /\/oauth\/([^/]+)$/;
+
+function getRouteHandler(method: string, path: string): RouteHandler | undefined {
+  const directKey = `${method}:${path}`;
+  const directHandler = ROUTE_MAP.get(directKey);
+  if (directHandler) return directHandler;
+
+  for (const [key, handler] of ROUTE_MAP) {
+    const colonIndex = key.indexOf(':');
+    const routeMethod = key.slice(0, colonIndex);
+    const routePath = key.slice(colonIndex + 1);
+    if (routeMethod === method && path.endsWith(routePath)) {
+      return handler;
+    }
+  }
+
+  return undefined;
 }
 
 export class BolkAuthInstance {
@@ -49,52 +93,21 @@ export class BolkAuthInstance {
     const path = url.pathname;
 
     try {
-      if (path.endsWith('/sign-up') && req.method === 'POST') {
-        return await this.signUp(req);
-      }
-      if (path.endsWith('/sign-in/email') && req.method === 'POST') {
-        return await this.signInEmail(req);
-      }
-      if (path.endsWith('/sign-in/magic-link') && req.method === 'POST') {
-        return await this.signInMagicLink(req);
-      }
-      if (path.endsWith('/verify') && req.method === 'GET') {
-        return await this.verifyMagicLink(req);
-      }
-      if (path.endsWith('/otp/send') && req.method === 'POST') {
-        return await this.sendOTP(req);
-      }
-      if (path.endsWith('/otp/verify') && req.method === 'POST') {
-        return await this.verifyOTP(req);
-      }
-      if (path.endsWith('/sign-out') && req.method === 'POST') {
-        return await this.signOut(req);
-      }
-      if (path.endsWith('/session') && req.method === 'GET') {
-        return await this.getSession(req);
-      }
-      if (path.endsWith('/user/metadata') && req.method === 'POST') {
-        return await this.updateMetadata(req);
-      }
-      if (path.endsWith('/user/metadata') && req.method === 'GET') {
-        return await this.getMetadata(req);
-      }
-      if (path.endsWith('/onboarding/step') && req.method === 'POST') {
-        return await this.onboardingStep(req);
-      }
-      if (path.endsWith('/onboarding/complete') && req.method === 'POST') {
-        return await this.onboardingComplete(req);
+      const handler = getRouteHandler(req.method, path);
+      if (handler) {
+        return await handler(this, req);
       }
 
       // OAuth Routes
-      if (path.match(/\/oauth\/([^/]+)\/callback$/) && req.method === 'GET') {
-        const parts = path.split('/');
-        const provider = parts[parts.length - 2];
-        return await this.oauthCallback(req, provider);
-      }
-      if (path.match(/\/oauth\/([^/]+)$/) && req.method === 'GET') {
-        const provider = path.split('/').pop()!;
-        return await this.oauthRedirect(req, provider);
+      if (req.method === 'GET') {
+        const callbackMatch = path.match(OAUTH_CALLBACK_REGEX);
+        if (callbackMatch) {
+          return await this.oauthCallback(req, callbackMatch[1]);
+        }
+        const redirectMatch = path.match(OAUTH_REDIRECT_REGEX);
+        if (redirectMatch) {
+          return await this.oauthRedirect(req, redirectMatch[1]);
+        }
       }
 
       return new Response('Not found', { status: 404 });
