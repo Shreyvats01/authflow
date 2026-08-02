@@ -1,0 +1,65 @@
+---
+title: Server Actions
+description: Use BolkAuth server helpers inside Next.js Server Actions.
+---
+
+Server Actions can call `requireAuth()` to ensure the mutation runs for an authenticated user.
+
+## Create Server Helpers
+
+```ts
+// lib/auth-server.ts
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export const { getSession, getUser, requireAuth } = createServerHelpers(auth);
+```
+
+## Protected Action
+
+```ts
+// app/settings/actions.ts
+"use server";
+
+import { requireAuth } from "@/lib/auth-server";
+import { auth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+
+export async function updateDisplayName(formData: FormData) {
+  const user = await requireAuth();
+  const name = String(formData.get("name") ?? "").trim();
+
+  if (name.length < 2) {
+    return { error: "Name must be at least 2 characters." };
+  }
+
+  await auth.config.adapter.updateUser(user.id, { name });
+  revalidatePath("/settings");
+
+  return { success: true };
+}
+```
+
+## Form Usage
+
+```tsx
+import { updateDisplayName } from "./actions";
+
+export function ProfileForm({ name }: { name?: string }) {
+  return (
+    <form action={updateDisplayName}>
+      <input name="name" defaultValue={name ?? ""} />
+      <button>Save</button>
+    </form>
+  );
+}
+```
+
+## Guidelines
+
+| Pattern | Why |
+|---|---|
+| Use `requireAuth()` inside every protected action | Middleware can protect routes, but actions should still enforce auth. |
+| Validate form input before writing | Server Actions receive untrusted user input. |
+| Mutate through the adapter or your app database layer | Keep business writes server-side. |
+| Call `revalidatePath()` after writes | Refresh stale Server Component output. |

@@ -1,0 +1,78 @@
+---
+title: Prisma
+description: Configure the Prisma adapter and schema models.
+---
+
+Install the Prisma adapter:
+
+<InstallTabs packages={["@bolkauth/adapter-prisma", "@prisma/client"]} />
+
+Install the Prisma CLI as a development dependency:
+
+<InstallTabs packages="prisma" dev />
+
+## Auth Configuration
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createPrismaAdapter } from "@bolkauth/adapter-prisma";
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+};
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
+export const auth = createBolkAuth({
+  adapter: createPrismaAdapter(prisma),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+## Schema Files
+
+The package includes schema path exports:
+
+```ts
+import {
+  postgresqlSchemaPath,
+  mysqlSchemaPath,
+  sqliteSchemaPath,
+} from "@bolkauth/adapter-prisma";
+```
+
+Use the schema file that matches your datasource provider, or copy the models into your existing `prisma/schema.prisma`.
+
+## Required Models
+
+Your Prisma schema must include models compatible with:
+
+| Model | Purpose |
+|---|---|
+| `AuthUser` | Users and password/email fields. |
+| `AuthSession` | Session records keyed by token. |
+| `AuthAccount` | OAuth provider account links. |
+| `AuthVerificationToken` | Magic-link and OTP tokens. |
+| `AuthUserMetadata` | Key/value metadata for onboarding and custom data. |
+
+## Migration
+
+```bash
+npx prisma migrate dev --name add_bolkauth
+npx prisma generate
+```
+
+For production:
+
+```bash
+npx prisma migrate deploy
+```
+
+## Dialects
+
+The adapter is designed for Prisma clients generated from PostgreSQL, MySQL, SQLite, or CockroachDB schemas. Make sure the `DATABASE_URL` and datasource provider agree.

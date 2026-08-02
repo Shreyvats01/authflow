@@ -1,0 +1,62 @@
+---
+title: Installation
+description: Install the BolkAuth packages for a React or Next.js application.
+---
+
+Install the core package plus the framework integration and database adapter you need.
+
+## Next.js App Router
+
+<InstallTabs packages={["@bolkauth/core", "@bolkauth/nextjs", "@bolkauth/react"]} />
+
+Then add one adapter:
+
+### Drizzle
+
+<InstallTabs packages={["@bolkauth/adapter-drizzle", "drizzle-orm"]} />
+
+### Prisma
+
+<InstallTabs packages={["@bolkauth/adapter-prisma", "@prisma/client"]} />
+
+### MongoDB
+
+<InstallTabs packages={["@bolkauth/adapter-mongodb", "mongodb"]} />
+
+## CLI Setup
+
+You can also start from the CLI wizard:
+
+<DlxTabs packageName="@bolkauth/cli" args="init" />
+
+The wizard can create `lib/auth.ts`, `app/api/auth/[...bolkauth]/route.ts`, `middleware.ts`, and `.env.example`.
+
+## Requirements
+
+| Requirement | Notes |
+|---|---|
+| Node.js | Use Node.js 18 or newer for Web Crypto support. |
+| TypeScript | Recommended for typed auth config, hooks, and adapter contracts. |
+| Next.js | Use the App Router integration from `@bolkauth/nextjs`. |
+| Database | Bring your own database through Drizzle, Prisma, MongoDB, or a custom adapter. |
+
+## Environment Variables
+
+Create `.env.local` in your app:
+
+```env
+BOLKAUTH_SECRET=
+DATABASE_URL=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+Generate a session signing secret with:
+
+```bash
+openssl rand -base64 32
+```

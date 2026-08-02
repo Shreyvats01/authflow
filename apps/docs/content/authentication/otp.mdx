@@ -1,0 +1,121 @@
+---
+title: OTP
+description: Add passwordless email one-time password authentication.
+---
+
+OTP auth sends a numeric email code, stores only a hash of the code, verifies one-time use, and creates a session on success.
+
+## Configuration
+
+```ts
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+  email: {
+    sendOTP: async ({ email, code, expiresAt }) => {
+      await resend.emails.send({
+        from: "Auth <auth@example.com>",
+        to: email,
+        subject: `${code} is your sign-in code`,
+        html: `<p>Your code is <strong>${code}</strong>. It expires at ${expiresAt.toISOString()}.</p>`,
+      });
+    },
+  },
+  otp: {
+    expiresIn: 600,
+    codeLength: 6,
+    maxAttempts: 5,
+  },
+});
+```
+
+## Routes
+
+### Send Code
+
+`POST /api/auth/otp/send`
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "success": true,
+    "expiresAt": "2026-08-01T12:10:00.000Z"
+  }
+}
+```
+
+### Verify Code
+
+`POST /api/auth/otp/verify`
+
+```json
+{
+  "email": "user@example.com",
+  "code": "482901"
+}
+```
+
+On success, BolkAuth creates or updates the user, marks the email as verified, creates a session, and sets the session cookie.
+
+## React Hook
+
+```tsx
+"use client";
+
+import { useOTP } from "@bolkauth/react";
+import { useState } from "react";
+
+export function OTPForm() {
+  const { step, sendCode, verifyCode, isLoading, error } = useOTP();
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+
+  if (step === "code_sent") {
+    return (
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          await verifyCode(code);
+        }}
+      >
+        <input value={code} onChange={(event) => setCode(event.target.value)} />
+        {error && <p>{error.message}</p>}
+        <button disabled={isLoading}>Verify</button>
+      </form>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={async (event) => {
+        event.preventDefault();
+        await sendCode(email);
+      }}
+    >
+      <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+      {error && <p>{error.message}</p>}
+      <button disabled={isLoading}>Send code</button>
+    </form>
+  );
+}
+```
+
+## Error Codes
+
+| Code | Cause |
+|---|---|
+| `invalid_email` | The send-code request did not include a valid email. |
+| `otp_not_configured` | `email.sendOTP` is missing. |
+| `invalid_otp` | The submitted code is malformed, expired, already used, or incorrect. |

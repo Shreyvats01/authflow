@@ -1,0 +1,42 @@
+---
+title: FAQ
+description: Answers to common BolkAuth questions.
+---
+
+## Is BolkAuth hosted?
+
+No. BolkAuth is self-hosted. You own the app, database, deployment, and user data.
+
+## Does BolkAuth include UI components?
+
+No. The React package is headless. It provides hooks and state; you build the UI.
+
+## Which databases are supported?
+
+Official adapters cover Drizzle, Prisma, and MongoDB. You can implement `BolkAuthAdapter` for other databases or ORMs.
+
+## Where are sessions stored?
+
+BolkAuth creates a database session record and sends a signed JWT in an `HttpOnly` cookie.
+
+## Can I use it without Next.js?
+
+The core package is framework-independent. The documented route handler, middleware, and server helpers are for Next.js App Router.
+
+## What OAuth callback URL should I register?
+
+Use:
+
+```txt
+https://yourapp.com/api/auth/oauth/:provider/callback
+```
+
+For example:
+
+```txt
+https://yourapp.com/api/auth/oauth/github/callback
+```
+
+## Does BolkAuth rate limit sign-in attempts?
+
+No. Add rate limiting at your platform, proxy, or middleware layer.

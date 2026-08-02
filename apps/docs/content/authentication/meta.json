@@ -1,0 +1,9 @@
+{
+  "title": "Authentication",
+  "pages": [
+    "email-password",
+    "oauth",
+    "otp",
+    "sessions"
+  ]
+}

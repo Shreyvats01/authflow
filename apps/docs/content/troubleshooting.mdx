@@ -1,334 +1,104 @@
 ---
 title: Troubleshooting
-description: Diagnose and fix common BolkAuth errors — double headers, session issues, OAuth callback failures, middleware redirects, adapter errors, and TypeScript problems.
+description: Diagnose common BolkAuth setup, session, OAuth, database, and TypeScript issues.
 ---
 
-A reference for the most common issues encountered when integrating BolkAuth. Each section describes symptoms, root causes, and exact fixes.
+Use this page when an integration compiles but auth behavior is not working as expected.
 
----
+## Session Cookie Is Not Set
 
-## 🔁 Heading Renders Twice
+Check these first:
 
-**Symptom:** Every docs/app page shows the title `h1` duplicated.
+| Check | Fix |
+|---|---|
+| Auth API is protected by middleware | Add `"/api/auth"` to `publicRoutes`. |
+| Wrong provider base URL | Set `BolkAuthProvider config={{ baseURL: "/api/auth" }}`. |
+| Response is cached | Keep auth responses uncached. The Next.js handler sets `Cache-Control` when missing. |
+| Cross-site cookie restrictions | Keep frontend and auth API on the same site when possible. |
 
-**Root cause:** Two sources render the heading:
-1. `page.tsx` manually injects `<h1>{page.data.title}</h1>`
-2. The `.mdx` file itself starts with `# Page Title`
+## Infinite Redirect Loop
 
-**Fix:** Remove the manual `<h1>` injection from `page.tsx`:
-
-```diff
-  return (
-    <DocsPage toc={page.data.exports.toc} full={page.data.full}>
-      <DocsBody>
--       <h1 className="text-3xl font-bold mb-2">{page.data.title}</h1>
--       {page.data.description && (
--         <p className="text-muted-foreground text-lg mb-8">{page.data.description}</p>
--       )}
-        <MDX components={defaultMdxComponents} />
-      </DocsBody>
-    </DocsPage>
-  );
-```
-
-Or alternatively, remove the `# Title` line from the top of each `.mdx` file and let the frontmatter `title` field drive the heading exclusively through `page.tsx`.
-
----
-
-## 🔐 Session Not Persisting
-
-**Symptom:** User signs in, but `useAuth().isSignedIn` is `false` after redirect, or the session cookie isn't set.
-
-### Check 1 — Cookie domain mismatch
-
-If your app runs on `app.example.com` but your API is on `api.example.com`, the cookie won't be shared by default. Set `session.domain`:
-
-```ts
-export const auth = createBolkAuth({
-  session: {
-    domain: ".example.com",  // note the leading dot — covers all subdomains
-  },
-});
-```
-
-### Check 2 — `NEXT_PUBLIC_APP_URL` mismatch
-
-Your OAuth callback URL must match the URL registered in the provider's OAuth app settings exactly. Check:
-
-```bash
-echo $NEXT_PUBLIC_APP_URL
-# should be: https://yourapp.com (no trailing slash)
-```
-
-### Check 3 — Middleware stripping the cookie
-
-If your middleware runs on API routes, it may be intercepting and redirecting the sign-in response before the `Set-Cookie` header reaches the browser. Make sure `/api/auth` is in `publicRoutes`:
+The sign-in page is probably protected by middleware. Add auth pages to public routes:
 
 ```ts
 export default bolkAuthMiddleware(auth, {
-  publicRoutes: [
-    "/",
-    "/sign-in",
-    "/sign-up",
-    "/api/auth",      // ← must include this
-    "/api/auth/(.*)", // also include if using prefix matching
-  ],
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
 });
 ```
 
-### Check 4 — `HttpOnly` cookie blocked by browser
+## OAuth Callback Fails
 
-In Safari with "Prevent cross-site tracking" enabled, third-party cookies are blocked. Ensure your API and frontend are on the same domain.
+Verify that your provider callback URL uses the current BolkAuth OAuth route shape:
 
----
-
-## 🔄 Infinite Redirect Loop
-
-**Symptom:** Browser shows "page redirected too many times" or loops between `/sign-in` and the protected page.
-
-**Root cause:** The sign-in page itself is being protected by middleware.
-
-**Fix:** Add your auth pages to `publicRoutes`:
-
-```ts
-export default bolkAuthMiddleware(auth, {
-  publicRoutes: [
-    "/",
-    "/sign-in",    // ← must be public
-    "/sign-up",    // ← must be public
-    "/api/auth",   // ← must be public
-  ],
-});
+```txt
+https://yourapp.com/api/auth/oauth/github/callback
+https://yourapp.com/api/auth/oauth/google/callback
 ```
 
-Also check that the matcher pattern doesn't exclude `/sign-in`:
-
-```ts
-export const config = {
-  // This matcher runs middleware on ALL routes except static files and _next
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
-};
-```
-
----
-
-## 🌐 OAuth Callback Error
-
-**Symptom:** After authorizing with GitHub/Google, the browser shows an error page or redirects to an error URL.
-
-### Check 1 — Redirect URI not registered
-
-Go to your OAuth app settings and verify the callback URL is registered:
-
-- **GitHub**: `https://yourapp.com/api/auth/callback/github`
-- **Google**: `https://yourapp.com/api/auth/callback/google`
-
-The URL must match **exactly** — including the protocol, domain, path, and no trailing slash.
-
-### Check 2 — Missing environment variables
+Also check that provider credentials are set:
 
 ```bash
-# Verify all OAuth env vars are set
-echo $GITHUB_CLIENT_ID
-echo $GITHUB_CLIENT_SECRET
-echo $GOOGLE_CLIENT_ID
-echo $GOOGLE_CLIENT_SECRET
+echo "$GITHUB_CLIENT_ID"
+echo "$GITHUB_CLIENT_SECRET"
 ```
 
-Empty values will cause the OAuth initiation request to fail silently.
+## `oauth_error` or State Mismatch
 
-### Check 3 — State mismatch (CSRF error code: `OAUTH_STATE_MISMATCH`)
+OAuth state is stored in an `oauth_state` cookie. State mismatches usually mean:
 
-The OAuth `state` parameter is stored in a session cookie. If the user's session cookie was lost between redirect and callback, state validation fails.
+- The callback returned to a different origin.
+- Cookies were blocked or cleared during the redirect.
+- The callback URL in the provider dashboard is not exact.
 
-Causes:
-- Browser blocks cookies during the redirect (Safari ITP)
-- State cookie expires too quickly
-- Load balancer is routing requests to different servers without sticky sessions
+## `invalid_credentials`
 
-For Vercel and similar stateless deployments, this is handled automatically — BolkAuth stores state in encrypted URL parameters when cookies aren't available.
+For email/password sign-in:
 
----
+- Make sure the user exists.
+- Make sure the account has a password value.
+- Make sure the password was created through BolkAuth or hashed in a compatible format.
 
-## 🗄️ Adapter / Database Errors
+## OTP Errors
 
-### `ADAPTER_ERROR: getUserByEmail is not a function`
+| Code | Fix |
+|---|---|
+| `otp_not_configured` | Add `email.sendOTP` to `createBolkAuth`. |
+| `invalid_otp` | Ask the user to enter a fresh code. Codes are one-time use and expire. |
+| `invalid_email` | Validate the email before calling `sendCode`. |
 
-**Cause:** The adapter object is not implementing all required methods, or you're passing the DB client directly instead of wrapping it with `createDrizzleAdapter()` / `createPrismaAdapter()`.
+## Missing Database Tables
 
-```ts
-// ❌ Wrong
-adapter: db,
-
-// ✅ Correct
-adapter: createDrizzleAdapter(db),
-```
-
-### `Error: Cannot connect to database`
-
-Verify `DATABASE_URL` is set and the PostgreSQL instance is reachable:
-
-```bash
-# Test connection (requires psql)
-psql $DATABASE_URL -c "SELECT 1;"
-
-# Or use Node.js
-node -e "
-const { Pool } = require('pg');
-const p = new Pool({ connectionString: process.env.DATABASE_URL });
-p.query('SELECT 1').then(() => console.log('OK')).catch(console.error);
-"
-```
-
-### Missing tables / `relation "auth_users" does not exist`
-
-The database schema hasn't been migrated. Run:
+Run migrations for the adapter you use:
 
 ```bash
 # Drizzle
-pnpm drizzle-kit push   # or: pnpm drizzle-kit migrate
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
 
 # Prisma
 npx prisma migrate deploy
 ```
 
----
+## TypeScript Cannot Find Package Exports
 
-## 🔑 JWT / Token Errors
-
-### `INVALID_TOKEN: JWT verification failed`
-
-**Causes and fixes:**
-
-| Cause | Fix |
-|---|---|
-| `BOLKAUTH_SECRET` changed after users signed in | All sessions invalidated — users must re-sign-in |
-| `BOLKAUTH_SECRET` has trailing whitespace | Check for whitespace: `echo -n "$BOLKAUTH_SECRET" | wc -c` |
-| JWT was tampered with (or corrupted in cookie) | Browser dev tools → Application → Cookies → delete `bolkauth.session` |
-| Secret is shorter than 32 characters | Generate a new one: `openssl rand -base64 32` |
-
-### `SESSION_EXPIRED`
-
-The JWT's `exp` claim is in the past. The user needs to sign in again. To extend sessions:
-
-```ts
-export const auth = createBolkAuth({
-  session: {
-    maxAge: 60 * 60 * 24 * 90, // 90 days instead of 30
-    rolling: true,              // reset expiry on each visit
-  },
-});
-```
-
----
-
-## 🔄 TypeScript Errors
-
-### `Property 'metadata' does not exist on type 'User'`
-
-The metadata field requires a type augmentation. Run:
+Check that the package is installed in the app workspace, not only at the monorepo root:
 
 ```bash
-npx @bolkauth/cli generate types
+pnpm list @bolkauth/core @bolkauth/react @bolkauth/nextjs
 ```
 
-Or manually create `types/bolkauth.d.ts`:
+For Drizzle, use supported subpath exports:
 
 ```ts
-import "@bolkauth/core";
-
-declare module "@bolkauth/core" {
-  interface BolkAuthUserMetadata {
-    role?: string;
-    teamSize?: string;
-  }
-}
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle/pg";
+import { createDrizzleAdapter as createMysqlAdapter } from "@bolkauth/adapter-drizzle/mysql";
 ```
 
-### `Type 'Promise<void>' is not assignable to type 'Promise<SignInResult>'`
+## Build Fails in Docs App
 
-You're likely not awaiting the `signIn()` / `signUp()` calls correctly:
-
-```ts
-// ❌ Wrong — not awaiting
-const result = signIn({ email, password });
-
-// ✅ Correct
-const result = await signIn({ email, password });
-if (result.error) { /* handle */ }
-```
-
-### `Module '"@bolkauth/react"' has no exported member 'signOut'`
-
-Ensure you're on `@bolkauth/react` v1.2+. Check:
+If the docs app fails because old generated routes are stale, clean and rebuild:
 
 ```bash
-cat node_modules/@bolkauth/react/package.json | grep '"version"'
+pnpm --filter docs clean
+pnpm --filter docs build
 ```
-
-If on an older version:
-
-```bash
-pnpm add @bolkauth/react@latest
-```
-
----
-
-## 🏗️ Build Errors
-
-### `Error: require() of ES Module`
-
-BolkAuth packages are ESM-only. If you see this error, ensure your Next.js config uses `.mjs` extension or `"type": "module"` in `package.json`:
-
-```js
-// next.config.mjs — must use .mjs extension
-import createMDX from "fumadocs-mdx/config";
-```
-
-### `Module not found: Can't resolve '@bolkauth/core'`
-
-The package isn't installed. Run:
-
-```bash
-pnpm install @bolkauth/core @bolkauth/nextjs @bolkauth/react
-```
-
-If using a monorepo, ensure the package is in the workspace that needs it (not just the root).
-
----
-
-## 🩺 Debug Mode
-
-Enable verbose logging to trace what BolkAuth is doing on each request:
-
-```ts
-export const auth = createBolkAuth({
-  adapter,
-  secret: process.env.BOLKAUTH_SECRET!,
-  debug: process.env.NODE_ENV === "development",
-});
-```
-
-With `debug: true`, BolkAuth logs to `console.debug`:
-
-```
-[BolkAuth] POST /api/auth/sign-in/email
-[BolkAuth] getUserByEmail("user@example.com") → found
-[BolkAuth] verifyPassword → ok
-[BolkAuth] createSession("ses_01hx...") → ok
-[BolkAuth] Set-Cookie: bolkauth.session=eyJ...
-```
-
----
-
-## 💬 Getting Help
-
-- **GitHub Issues**: [github.com/Shreyvats01/bolkauth/issues](https://github.com/Shreyvats01/bolkauth/issues)
-- **Discussions**: [github.com/Shreyvats01/bolkauth/discussions](https://github.com/Shreyvats01/bolkauth/discussions)
-
-When reporting a bug, please include:
-1. BolkAuth package versions (`pnpm list @bolkauth/core`)
-2. Next.js version (`next --version`)
-3. Node.js version (`node --version`)
-4. The exact error message and stack trace
-5. Minimal reproduction steps

@@ -1,0 +1,99 @@
+---
+title: API Reference
+description: Reference for routes, config, React hooks, Next.js helpers, and adapter methods.
+---
+
+## HTTP Routes
+
+Assuming the handler is mounted at `/api/auth`:
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/auth/sign-up` | Create a user with email and password. |
+| `POST` | `/api/auth/sign-in/email` | Sign in with email and password. |
+| `POST` | `/api/auth/sign-in/magic-link` | Send a magic-link email. |
+| `GET` | `/api/auth/verify` | Verify a magic-link token. |
+| `GET` | `/api/auth/oauth/:provider` | Start OAuth provider redirect. |
+| `GET` | `/api/auth/oauth/:provider/callback` | Handle OAuth provider callback. |
+| `POST` | `/api/auth/otp/send` | Send an email OTP code. |
+| `POST` | `/api/auth/otp/verify` | Verify an OTP code and create a session. |
+| `POST` | `/api/auth/sign-out` | Delete the session and clear the cookie. |
+| `GET` | `/api/auth/session` | Return the current session and user. |
+| `GET` | `/api/auth/user/metadata?key=...` | Read one metadata key. |
+| `POST` | `/api/auth/user/metadata` | Update metadata keys. |
+| `POST` | `/api/auth/onboarding/step` | Persist an onboarding step payload. |
+| `POST` | `/api/auth/onboarding/complete` | Mark onboarding complete in metadata. |
+
+## Config Shape
+
+```ts
+interface BolkAuthConfig {
+  adapter: BolkAuthAdapter;
+  secret: string;
+  session?: SessionConfig;
+  email?: EmailConfig;
+  emailAndPassword?: {
+    enabled?: boolean;
+    requireEmailVerification?: boolean;
+    minPasswordLength?: number;
+  };
+  socialProviders?: Record<string, { clientId: string; clientSecret: string; scopes?: string[] }>;
+  social?: SocialConfig;
+  onboarding?: OnboardingConfig;
+  otp?: OTPConfig;
+}
+```
+
+## React Hooks
+
+| Hook | Return highlights |
+|---|---|
+| `useAuth()` | `isLoaded`, `isSignedIn`, `userId`, `sessionId` |
+| `useUser()` | `isLoaded`, `isSignedIn`, `user`, `reload` |
+| `useSession()` | `isLoaded`, `session` |
+| `useSignIn()` | `signIn`, `isLoading`, `error`, `fieldErrors` |
+| `useSignUp()` | `signUp`, `isLoading`, `error`, `fieldErrors` |
+| `useOAuth()` | `signInWithOAuth` |
+| `useOTP()` | `step`, `email`, `expiresAt`, `sendCode`, `verifyCode`, `reset`, `isLoading`, `error` |
+| `useOnboarding()` | `currentStep`, `completedSteps`, `onboardingData`, `saveStep`, `completeOnboarding` |
+| `useUserMetadata()` | `metadata`, `updateMetadata`, `getMetadata` |
+
+## Next.js Helpers
+
+```ts
+const { getSession, getUser, requireAuth } = createServerHelpers(auth);
+```
+
+| Helper | Description |
+|---|---|
+| `getSession()` | Reads and verifies the session cookie. |
+| `getUser()` | Reads the current user from the adapter. |
+| `requireAuth(signInUrl?)` | Returns the user or redirects. |
+
+## Adapter Methods
+
+```ts
+interface BolkAuthAdapter {
+  createUser(user): Promise<User>;
+  findUserById(id): Promise<User | null>;
+  findUserByEmail(email): Promise<User | null>;
+  updateUser(id, user): Promise<User>;
+  deleteUser(id): Promise<void>;
+
+  createSession(session): Promise<Session>;
+  findSessionByToken(token): Promise<Session | null>;
+  updateSession(id, session): Promise<Session>;
+  deleteSession(id): Promise<void>;
+  deleteUserSessions(userId): Promise<void>;
+
+  createAccount(account): Promise<Account>;
+  findAccountByProvider(provider, providerAccountId): Promise<Account | null>;
+
+  createVerificationToken(token): Promise<VerificationToken>;
+  findVerificationToken(identifier, token): Promise<VerificationToken | null>;
+  deleteVerificationToken(identifier, token): Promise<void>;
+
+  getUserMetadata(userId, key): Promise<UserMetadata | null>;
+  updateUserMetadata(userId, key, value): Promise<UserMetadata>;
+}
+```

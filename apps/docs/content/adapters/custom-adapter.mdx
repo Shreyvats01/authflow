@@ -1,0 +1,78 @@
+---
+title: Custom Adapter
+description: Implement the BolkAuthAdapter interface for any database or ORM.
+---
+
+Build a custom adapter when you use an unsupported ORM, an existing user table, a remote API, or a specialized data store.
+
+## Interface
+
+```ts
+import type { BolkAuthAdapter } from "@bolkauth/core";
+
+export function createCustomAdapter(): BolkAuthAdapter {
+  return {
+    async createUser(user) {},
+    async findUserById(id) {},
+    async findUserByEmail(email) {},
+    async updateUser(id, user) {},
+    async deleteUser(id) {},
+
+    async createSession(session) {},
+    async findSessionByToken(token) {},
+    async updateSession(id, session) {},
+    async deleteSession(id) {},
+    async deleteUserSessions(userId) {},
+
+    async createAccount(account) {},
+    async findAccountByProvider(provider, providerAccountId) {},
+
+    async createVerificationToken(token) {},
+    async findVerificationToken(identifier, token) {},
+    async deleteVerificationToken(identifier, token) {},
+
+    async getUserMetadata(userId, key) {},
+    async updateUserMetadata(userId, key, value) {},
+  };
+}
+```
+
+## Method Groups
+
+| Group | Methods |
+|---|---|
+| Users | `createUser`, `findUserById`, `findUserByEmail`, `updateUser`, `deleteUser` |
+| Sessions | `createSession`, `findSessionByToken`, `updateSession`, `deleteSession`, `deleteUserSessions` |
+| OAuth accounts | `createAccount`, `findAccountByProvider` |
+| Verification tokens | `createVerificationToken`, `findVerificationToken`, `deleteVerificationToken` |
+| Metadata | `getUserMetadata`, `updateUserMetadata` |
+
+## Token Storage
+
+Adapters should store session and verification tokens in a form that prevents raw token disclosure. The official adapters hash token inputs before writes and lookups.
+
+## Metadata Storage
+
+The current metadata interface is key/value based:
+
+```ts
+async updateUserMetadata(userId: string, key: string, value: string) {
+  return await db.userMetadata.upsert({
+    where: { userId_key: { userId, key } },
+    update: { value },
+    create: { userId, key, value },
+  });
+}
+```
+
+Onboarding writes use metadata keys such as `onboarding_step` and `onboarding_complete`.
+
+## Testing Checklist
+
+Before using a custom adapter in production, verify:
+
+- User email lookup is unique and indexed.
+- Session token lookup is indexed.
+- OAuth account lookup by provider and provider account ID is unique.
+- Verification token lookup uses both identifier and token.
+- User deletes clean up sessions, accounts, tokens, and metadata where your database does not cascade automatically.

@@ -1,0 +1,61 @@
+---
+title: Contributing
+description: Contribute to BolkAuth packages and documentation.
+---
+
+## Repository Layout
+
+```txt
+apps/
+  docs/
+packages/
+  core/
+  react/
+  nextjs/
+  adapter-drizzle/
+  adapter-prisma/
+  adapter-mongodb/
+  cli/
+```
+
+## Local Development
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Run the docs app:
+
+```bash
+pnpm --filter docs dev
+```
+
+Build packages:
+
+```bash
+pnpm build
+```
+
+Run tests when changing runtime behavior:
+
+```bash
+pnpm test
+```
+
+## Documentation Guidelines
+
+- Keep page titles aligned with the sidebar classification.
+- Prefer small focused pages over large mixed pages.
+- Use current package source as the source of truth for route names and APIs.
+- Put framework-specific guidance in `React`, `Next.js`, `Middleware`, or `Server Actions`.
+- Put database-specific guidance under `Adapters`.
+
+## Pull Request Checklist
+
+- [ ] The change is scoped to one topic.
+- [ ] New or changed behavior has tests where practical.
+- [ ] Docs examples compile conceptually against the current public API.
+- [ ] Package exports and docs import paths match.
+- [ ] Generated build output is not edited by hand.

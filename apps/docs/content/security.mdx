@@ -1,0 +1,69 @@
+---
+title: Security
+description: Security model, cookie flags, secrets, OAuth state, and production hardening.
+---
+
+BolkAuth is designed around signed session cookies, database-backed sessions, provider state checks, and server-side token handling.
+
+## Threat Model
+
+| Threat | Mitigation |
+|---|---|
+| XSS token theft | Session JWT is stored in an `HttpOnly` cookie. |
+| JWT tampering | JWTs are signed with HMAC using `BOLKAUTH_SECRET`. |
+| OAuth CSRF | OAuth flow stores and validates an `oauth_state` cookie. |
+| Password disclosure | Passwords are hashed before being written through the adapter. |
+| Token reuse | OTP and magic-link verification tokens are deleted after use. |
+| Session replay after sign-out | Sign-out deletes the backing session and clears the cookie. |
+
+## Cookie Behavior
+
+Session cookies are sent with:
+
+```txt
+Path=/; HttpOnly; SameSite=Lax; Max-Age=<session max age>
+```
+
+Use HTTPS in production so browsers send cookies only over encrypted transport. Keep auth APIs and frontend pages on the same site when possible.
+
+## Secret Requirements
+
+`BOLKAUTH_SECRET` signs JWT session cookies. Use at least 32 random characters:
+
+```bash
+openssl rand -base64 32
+```
+
+Do not commit this value. Store it in your hosting provider's environment variable or secret manager.
+
+Changing the secret invalidates existing JWT cookies. Users will need to sign in again.
+
+## OAuth Callback Safety
+
+OAuth requests set an `oauth_state` cookie and require the callback `state` value to match. Make sure the provider callback URL uses the same origin as the app that started the OAuth flow:
+
+```txt
+https://yourapp.com/api/auth/oauth/github/callback
+```
+
+## Rate Limiting
+
+BolkAuth does not include infrastructure-level rate limiting. Add rate limits for:
+
+- `POST /api/auth/sign-in/email`
+- `POST /api/auth/sign-up`
+- `POST /api/auth/otp/send`
+- `POST /api/auth/otp/verify`
+
+Use your platform, reverse proxy, or middleware layer.
+
+## Production Checklist
+
+- [ ] `BOLKAUTH_SECRET` is random and at least 32 characters.
+- [ ] Secrets are stored outside source control.
+- [ ] OAuth callback URLs match production domains exactly.
+- [ ] Auth mutation routes are rate limited.
+- [ ] Database connections use SSL where required by the provider.
+- [ ] Cookies are served over HTTPS in production.
+- [ ] Public routes do not expose authenticated data.
+- [ ] Server Actions call `requireAuth()` before protected writes.

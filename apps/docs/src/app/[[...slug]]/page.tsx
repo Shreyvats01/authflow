@@ -2,6 +2,7 @@ import { source } from '@/lib/source';
 import { DocsPage, DocsBody } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
+import { useMDXComponents } from '../../../mdx-components';
 
 export const dynamicParams = false;
 
@@ -10,11 +11,12 @@ export default async function Page({ params }: { params: { slug?: string[] } }) 
   if (!page) notFound();
 
   const MDX = page.data.exports.default;
+  const components = useMDXComponents(defaultMdxComponents);
 
   return (
     <DocsPage toc={page.data.exports.toc} full={page.data.full}>
       <DocsBody>
-        <MDX components={defaultMdxComponents} />
+        <MDX components={components} />
       </DocsBody>
     </DocsPage>
   );

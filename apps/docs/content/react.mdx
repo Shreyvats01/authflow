@@ -1,0 +1,156 @@
+---
+title: React
+description: Use BolkAuthProvider and headless React hooks.
+---
+
+`@bolkauth/react` provides client-side auth state and headless hooks. It does not ship UI components.
+
+## Provider
+
+Wrap the part of your app that needs auth state:
+
+```tsx
+import { BolkAuthProvider } from "@bolkauth/react";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <BolkAuthProvider config={{ baseURL: "/api/auth" }}>
+          {children}
+        </BolkAuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+`baseURL` must match the path where `bolkAuthHandler(auth)` is mounted.
+
+## Hooks
+
+| Hook | Use it for |
+|---|---|
+| `useAuth()` | Fast auth state: loaded, signed-in, user ID, and session ID. |
+| `useUser()` | Current user object and a `reload()` function. |
+| `useSession()` | Current session object. |
+| `useSignIn()` | Email/password sign-in. |
+| `useSignUp()` | Email/password registration. |
+| `useOAuth()` | Provider redirects such as GitHub or Google. |
+| `useOTP()` | Email one-time password send and verify flow. |
+| `useMagicLink()` | Email magic-link request flow. |
+| `useOnboarding()` | Client state plus persistence for onboarding steps. |
+| `useUserMetadata()` | Read and update user metadata records. |
+
+## Auth State
+
+```tsx
+"use client";
+
+import { useAuth } from "@bolkauth/react";
+
+export function HeaderAuthState() {
+  const { isLoaded, isSignedIn, userId } = useAuth();
+
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <a href="/sign-in">Sign in</a>;
+
+  return <a href="/dashboard">Dashboard for {userId}</a>;
+}
+```
+
+## Current User
+
+```tsx
+"use client";
+
+import { useUser } from "@bolkauth/react";
+
+export function UserMenu() {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  if (!isLoaded) return null;
+  if (!isSignedIn || !user) return <a href="/sign-in">Sign in</a>;
+
+  return <p>{user.name ?? user.email}</p>;
+}
+```
+
+## Email Sign-In
+
+```tsx
+"use client";
+
+import { useSignIn } from "@bolkauth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export function SignInForm() {
+  const router = useRouter();
+  const { signIn, isLoading, error, fieldErrors } = useSignIn();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const result = await signIn({ email, password });
+
+    if (!result.error) {
+      router.push("/dashboard");
+      router.refresh();
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+      <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
+      {fieldErrors.email && <p>{fieldErrors.email}</p>}
+      {error && <p>{error.message}</p>}
+      <button disabled={isLoading}>Sign in</button>
+    </form>
+  );
+}
+```
+
+## OAuth
+
+```tsx
+"use client";
+
+import { useOAuth } from "@bolkauth/react";
+
+export function SocialButtons() {
+  const { signInWithOAuth } = useOAuth();
+
+  return <button onClick={() => signInWithOAuth("github")}>Continue with GitHub</button>;
+}
+```
+
+## Onboarding
+
+```tsx
+"use client";
+
+import { useOnboarding } from "@bolkauth/react";
+
+export function OnboardingStep() {
+  const { currentStep, saveStep, goToNextStep, completeOnboarding, isLoading } = useOnboarding(3);
+
+  async function saveRole() {
+    await saveStep(currentStep, { role: "developer" });
+    goToNextStep();
+  }
+
+  async function finish() {
+    await completeOnboarding();
+  }
+
+  return (
+    <div>
+      <button disabled={isLoading} onClick={saveRole}>Save step</button>
+      <button disabled={isLoading} onClick={finish}>Complete</button>
+    </div>
+  );
+}
+```

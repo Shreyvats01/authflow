@@ -1,401 +1,93 @@
 ---
 title: Core Concepts
-description: Deep dive into BolkAuth architecture, full config reference, JWT security, PBKDF2 hashing, session lifecycle, and the onboarding state machine.
+description: Understand the BolkAuth engine, request flow, sessions, adapters, and metadata model.
 ---
 
-BolkAuth separates business logic from platform frameworks. The `@bolkauth/core` package is a **zero-dependency** authentication engine that runs in any JavaScript runtime that supports the Web Crypto API — including Node.js 18+, Deno, Bun, and the Edge Runtime.
+BolkAuth is split into small packages with a clear boundary between authentication logic and framework/database integrations.
 
----
+## Architecture
 
-## ⚙️ Full Configuration Reference
+```txt
+React UI
+  -> @bolkauth/react hooks
+  -> /api/auth/* route handler
+  -> @bolkauth/core
+  -> BolkAuthAdapter
+  -> Your database
 
-The `createBolkAuth(config)` function accepts a `BolkAuthConfig` object. Here is the complete TypeScript interface with every available option:
-
-```ts
-interface BolkAuthConfig {
-  /** Required — pluggable database adapter (Drizzle, Prisma, or custom) */
-  adapter: BolkAuthAdapter;
-
-  /**
-   * Required — minimum 32-character secret used for HMAC-SHA256 JWT signing.
-   * Generate with: openssl rand -base64 32
-   */
-  secret: string;
-
-  /** Session cookie and expiry configuration */
-  session?: SessionConfig;
-
-  /** Email/password authentication settings */
-  emailAndPassword?: EmailAndPasswordConfig;
-
-  /** Transactional email configuration (verification, password reset) */
-  email?: EmailConfig;
-
-  /**
-   * Social/OAuth provider credentials.
-   * Keys must match supported provider IDs: "github" | "google" | "discord" | "twitter"
-   */
-  socialProviders?: Record<string, OAuthProviderConfig>;
-
-  /** Global OAuth settings shared across all providers */
-  social?: SocialConfig;
-
-  /** Multi-step onboarding state machine configuration */
-  onboarding?: OnboardingConfig;
-}
+Next.js middleware
+  -> verifies the signed session cookie
+  -> redirects unauthenticated requests
 ```
 
-### `SessionConfig`
+## Core Engine
 
-```ts
-interface SessionConfig {
-  /**
-   * Session lifetime in seconds.
-   * Default: 2592000 (30 days)
-   */
-  maxAge?: number;
+`@bolkauth/core` owns the authentication behavior:
 
-  /**
-   * Name of the HTTP cookie that stores the JWT.
-   * Default: "bolkauth.session"
-   */
-  cookieName?: string;
+| Area | Responsibility |
+|---|---|
+| Email/password | Validate credentials, hash passwords, create users and sessions. |
+| Magic links | Create verification tokens and verify emailed links. |
+| OTP | Generate numeric codes, store hashed tokens, verify one-time use. |
+| OAuth | Redirect to providers, validate state, exchange codes, link accounts. |
+| Sessions | Sign JWT cookies and persist session records through the adapter. |
+| Metadata | Store onboarding and custom user metadata through adapter methods. |
 
-  /**
-   * Whether to extend the session expiry on each request (sliding window).
-   * Default: false
-   */
-  rolling?: boolean;
+## Adapter Boundary
 
-  /**
-   * Comma-separated list of domain origins allowed to set the session cookie.
-   * Useful in multi-domain monorepos.
-   */
-  domain?: string;
-}
-```
-
-**Example — custom session lifetime:**
+BolkAuth does not own your database client. The adapter is the only database contract the core engine needs:
 
 ```ts
 export const auth = createBolkAuth({
-  adapter,
+  adapter: createDrizzleAdapter(db),
   secret: process.env.BOLKAUTH_SECRET!,
-  session: {
-    maxAge: 60 * 60 * 8,      // 8-hour sessions
-    cookieName: "myapp.auth",
-    rolling: true,             // reset expiry on every visit
-  },
 });
 ```
 
-### `EmailAndPasswordConfig`
+That boundary lets you use Drizzle, Prisma, MongoDB, or your own storage implementation.
+
+## Session Model
+
+After a successful sign-in, BolkAuth:
+
+1. Creates a database session through `adapter.createSession`.
+2. Signs a JWT containing `sessionId` and `userId`.
+3. Sends the JWT in an `HttpOnly` cookie.
+4. Uses the cookie on future requests to read the current session.
+
+The cookie is not readable by client-side JavaScript. React hooks call the auth API to load the current user and session.
+
+## Request Flow
+
+```txt
+POST /api/auth/sign-in/email
+  -> validate email and password
+  -> find user by email
+  -> verify password hash
+  -> create session
+  -> set bolkauth.session cookie
+  -> return user and session data
+```
+
+For protected pages, middleware checks the cookie before rendering and redirects unauthenticated users to `signInUrl`.
+
+## Cross-Tab Sync
+
+`BolkAuthProvider` uses `BroadcastChannel` to refresh auth state in every open tab after sign-in, sign-up, and OTP verification. Client components do not need to poll for auth changes.
+
+## Errors
+
+API responses use a consistent shape:
 
 ```ts
-interface EmailAndPasswordConfig {
-  /** Enable email + password sign-up and sign-in. Default: false */
-  enabled: boolean;
-
-  /**
-   * Minimum password character length.
-   * Passwords shorter than this are rejected at the server level.
-   * Default: 8
-   */
-  minPasswordLength?: number;
-
-  /**
-   * Whether to send a verification email after sign-up before allowing sign-in.
-   * Requires email config. Default: false
-   */
-  requireEmailVerification?: boolean;
+interface BolkAuthResponse<T> {
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    fieldErrors?: Record<string, string[]>;
+  };
 }
 ```
 
-### `OAuthProviderConfig`
-
-```ts
-interface OAuthProviderConfig {
-  clientId: string;
-  clientSecret: string;
-
-  /**
-   * Override the OAuth callback URL.
-   * Defaults to: `${baseUrl}/api/auth/callback/${provider}`
-   */
-  redirectUrl?: string;
-
-  /**
-   * Additional OAuth scopes to request beyond the defaults.
-   * GitHub default: ["user:email", "read:user"]
-   * Google default: ["openid", "email", "profile"]
-   */
-  scopes?: string[];
-}
-```
-
-### `OnboardingConfig`
-
-```ts
-interface OnboardingConfig {
-  /** Enable onboarding state persistence. Default: false */
-  enabled: boolean;
-
-  /**
-   * When true, signed-in users who haven't completed onboarding
-   * are automatically redirected by bolkAuthMiddleware.
-   * Default: false
-   */
-  requiredForAccess?: boolean;
-
-  /**
-   * URL to redirect un-onboarded users to.
-   * Only used when requiredForAccess is true.
-   * Default: "/onboarding"
-   */
-  redirectUrl?: string;
-}
-```
-
----
-
-## 🔒 Session & Security Model
-
-BolkAuth uses **stateless HTTP-only JWT cookies** backed entirely by the Web Crypto API. No native Node.js addons, no `bcryptjs`, no `jsonwebtoken` dependency.
-
-### Full Authentication Lifecycle
-
-```
-1. User submits credentials to POST /api/auth/sign-in/email
-   └─ Body: { email: string, password: string }
-
-2. Core reads user from adapter: getUserByEmail(email)
-   └─ If not found → returns { error: "INVALID_CREDENTIALS" }
-
-3. PBKDF2 password verification:
-   └─ Splits stored "salt:hash" from DB
-   └─ Re-derives hash with same salt (100,000 iterations, SHA-256)
-   └─ Compares derived hash with stored hash (constant-time comparison)
-   └─ If mismatch → returns { error: "INVALID_CREDENTIALS" }
-
-4. Session record created in DB via adapter.createSession()
-   └─ id: cuid() — stored as sessionId in JWT
-   └─ expiresAt: now + maxAge
-   └─ userId: user.id
-
-5. JWT minted:
-   └─ Payload: { sessionId, userId, iat, exp }
-   └─ Signed: HMAC-SHA256(base64url(header) + "." + base64url(payload), secret)
-
-6. Response: 200 + Set-Cookie header:
-   └─ Cookie flags: HttpOnly; SameSite=Lax; Path=/; Max-Age=<maxAge>
-   └─ (Secure flag is automatically added in production)
-
-7. Browser stores cookie; subsequent requests send it automatically.
-
-8. Middleware validates cookie on every protected request:
-   └─ Parses JWT (verify signature → decode payload)
-   └─ Checks sessionId exists in DB (optional, controlled by adapter)
-   └─ Checks exp claim hasn't passed
-   └─ Populates session context for Server Components
-```
-
----
-
-## 🧬 JWT Anatomy
-
-BolkAuth issues standard HS256 JWTs. A decoded token looks like this:
-
-**Header:**
-
-```json
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-```
-
-**Payload:**
-
-```json
-{
-  "sessionId": "ses_01hx9k2mfpqrstuvwxyz",
-  "userId":    "usr_01hx9k2mfpqrstuvwxyz",
-  "iat": 1716902400,
-  "exp": 1719494400
-}
-```
-
-**Signature** (HMAC-SHA256 of `base64url(header) + "." + base64url(payload)` using your `BOLKAUTH_SECRET`).
-
-> **Important:** The JWT is stored in an `HttpOnly` cookie — it is **never accessible from JavaScript**. This prevents XSS attacks from stealing session tokens.
-
----
-
-## 🔐 PBKDF2 Password Hashing
-
-BolkAuth uses the **Web Crypto API** `SubtleCrypto.deriveBits()` for password hashing — no third-party hashing library is required.
-
-| Parameter | Value |
-|---|---|
-| Algorithm | `PBKDF2` |
-| Hash function | `SHA-256` |
-| Iterations | `100,000` |
-| Salt length | 16 bytes (generated via `crypto.getRandomValues`) |
-| Output length | 32 bytes (256 bits) |
-| Storage format | `"<hex-salt>:<hex-hash>"` stored in `authUsers.passwordHash` |
-
-**How password verification works:**
-
-```ts
-// Pseudocode matching BolkAuth internals
-async function verifyPassword(plaintext: string, stored: string): Promise<boolean> {
-  const [saltHex, hashHex] = stored.split(":");
-  const salt = hexToBuffer(saltHex);
-
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(plaintext),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
-    keyMaterial,
-    256 // bits
-  );
-
-  const derivedHex = bufferToHex(derivedBits);
-  return timingSafeEqual(derivedHex, hashHex); // constant-time comparison
-}
-```
-
----
-
-## 🧭 Multi-Step Onboarding State Machine
-
-BolkAuth includes a built-in onboarding engine. User progress is persisted to `authUserMetadata.onboardingState` and `authUserMetadata.onboardingData`.
-
-### State Diagram
-
-```
-                  ┌─────────────────┐
-                  │   NOT_STARTED   │  ← initial state for all new users
-                  └────────┬────────┘
-                           │  POST /api/auth/onboarding/step
-                           ▼
-                  ┌─────────────────┐
-                  │   IN_PROGRESS   │  ← user is working through steps
-                  └────────┬────────┘
-          ┌────────────────┤
-          │ POST /step     │  POST /api/auth/onboarding/complete
-          │ (save & stay)  ▼
-          └────────▶ ┌─────────────────┐
-                     │    COMPLETE     │  ← user has full app access
-                     └─────────────────┘
-```
-
-### Saving Step Data
-
-```ts
-// Step 1 — capture role
-await fetch("/api/auth/onboarding/step", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    step: "role",
-    data: { role: "developer", experience: "3-5 years" },
-  }),
-});
-
-// Step 2 — capture team info
-await fetch("/api/auth/onboarding/step", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    step: "team",
-    data: { teamSize: "5-10", industry: "fintech" },
-  }),
-});
-
-// Mark onboarding complete (triggers redirect in middleware)
-await fetch("/api/auth/onboarding/complete", { method: "POST" });
-```
-
-The `onboardingData` JSON field is merged on each step call — you don't need to re-send previous steps. After calling `/complete`, `onboardingState` becomes `"COMPLETE"` and the middleware stops redirecting the user.
-
-### Reading Onboarding Data (Server Component)
-
-```tsx
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
-
-const { getUser } = createServerHelpers(auth);
-
-export default async function OnboardingPage() {
-  const user = await getUser();
-
-  // Access the step data from metadata
-  const onboardingData = user?.metadata?.onboardingData as {
-    role?: string;
-    teamSize?: string;
-  } | null;
-
-  return (
-    <div>
-      <h2>Welcome back, {user?.name}!</h2>
-      {onboardingData?.role && (
-        <p>Your role: {onboardingData.role}</p>
-      )}
-    </div>
-  );
-}
-```
-
----
-
-## 📡 BroadcastChannel Cross-Tab Synchronization
-
-When a user signs in, signs out, or their session changes, `@bolkauth/react` broadcasts an event via the browser's `BroadcastChannel` API. All other open tabs listening on the same channel receive this event and instantly update their auth state — no polling required.
-
-```
-Tab A (sign-in action)
-  └─ signIn() → POST /api/auth/sign-in/email
-     └─ success → BroadcastChannel.postMessage({ type: "SIGNED_IN", user })
-                          │
-        ┌─────────────────┤
-        ▼                 ▼
-      Tab B             Tab C
-   (updates UI)      (updates UI)
-```
-
-This is invisible to the developer — it happens automatically inside `BolkAuthProvider`. You do not need to configure anything.
-
----
-
-## ❌ Error Codes Reference
-
-All BolkAuth API errors return a consistent shape:
-
-```ts
-interface AuthError {
-  code: string;        // machine-readable error code
-  message: string;     // human-readable description
-  status: number;      // HTTP status code
-}
-```
-
-| Code | Status | Description |
-|---|---|---|
-| `INVALID_CREDENTIALS` | 401 | Email or password is incorrect |
-| `USER_NOT_FOUND` | 404 | No account exists with this email |
-| `EMAIL_ALREADY_EXISTS` | 409 | An account with this email already exists |
-| `SESSION_EXPIRED` | 401 | The session token has expired |
-| `SESSION_NOT_FOUND` | 401 | The session ID in the JWT doesn't exist in the DB |
-| `INVALID_TOKEN` | 401 | The JWT signature is invalid or malformed |
-| `ONBOARDING_REQUIRED` | 403 | User hasn't completed onboarding (middleware redirects) |
-| `OAUTH_STATE_MISMATCH` | 400 | CSRF state mismatch in OAuth callback |
-| `OAUTH_PROVIDER_ERROR` | 502 | OAuth provider returned an error response |
-| `PASSWORD_TOO_SHORT` | 422 | Password doesn't meet minimum length requirement |
-| `ADAPTER_ERROR` | 500 | Database adapter threw an unexpected error |
+Common codes include `invalid_credentials`, `user_exists`, `weak_password`, `invalid_email`, `invalid_otp`, `otp_not_configured`, `oauth_error`, and `unauthorized`.

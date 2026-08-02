@@ -2,15 +2,23 @@
   "title": "BolkAuth",
   "pages": [
     "index",
+    "installation",
+    "quick-start",
+    "configuration",
     "core-concepts",
-    "nextjs-integration",
-    "react-hooks",
-    "otp",
+    "authentication",
+    "react",
+    "nextjs",
+    "middleware",
+    "server-actions",
     "adapters",
-    "custom-adapter",
     "cli",
+    "security",
+    "deployment",
     "examples",
-    "security-reference",
-    "troubleshooting"
+    "api-reference",
+    "faq",
+    "troubleshooting",
+    "contributing"
   ]
 }

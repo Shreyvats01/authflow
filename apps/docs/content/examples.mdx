@@ -1,365 +1,122 @@
 ---
-title: Full Code Examples
-description: Eight production-ready, copy-paste recipes — sign-in, sign-up, onboarding wizard, protected dashboard, user profile, sign-out, OAuth buttons, and a protected API route.
+title: Examples
+description: Common BolkAuth implementation patterns.
 ---
 
-Eight complete, copy-paste ready recipes for common BolkAuth patterns in Next.js App Router applications. Each example is self-contained and production-grade.
+These examples assume the auth route is mounted at `/api/auth` and `BolkAuthProvider` wraps the app.
 
----
-
-## 1. Complete Sign-In Page
-
-A full sign-in page with email/password form, social buttons, error handling, and redirect:
+## Sign-In Page
 
 ```tsx
 // app/sign-in/page.tsx
-import { SignInForm } from "@/components/auth/sign-in-form";
-
-export const metadata = { title: "Sign In — MyApp" };
+import { SignInForm } from "@/components/sign-in-form";
 
 export default function SignInPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <SignInForm />
-    </div>
-  );
+  return <SignInForm />;
 }
 ```
 
 ```tsx
-// components/auth/sign-in-form.tsx
+// components/sign-in-form.tsx
 "use client";
 
-import { useSignIn, useOAuth } from "@bolkauth/react";
+import { useSignIn } from "@bolkauth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function SignInForm() {
   const router = useRouter();
-  const { signIn, isLoading: isEmailLoading, error, reset } = useSignIn();
-  const { signInWithOAuth, isLoading: isOAuthLoading } = useOAuth();
+  const { signIn, isLoading, error } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const isLoading = isEmailLoading || isOAuthLoading;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
     const result = await signIn({ email, password });
+
     if (!result.error) {
       router.push("/dashboard");
       router.refresh();
     }
-  };
+  }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="bg-white rounded-2xl shadow-sm border p-8">
-        <h1 className="text-2xl font-bold tracking-tight mb-1">Welcome back</h1>
-        <p className="text-sm text-gray-500 mb-6">Sign in to your account</p>
-
-        {/* Social buttons */}
-        <div className="space-y-2 mb-6">
-          <button
-            onClick={() => signInWithOAuth("github")}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
-          >
-            <GithubIcon />
-            Continue with GitHub
-          </button>
-          <button
-            onClick={() => signInWithOAuth("google")}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-        </div>
-
-        <div className="relative my-5">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 text-gray-400">or</span>
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
-            {error.code === "INVALID_CREDENTIALS"
-              ? "Incorrect email or password."
-              : error.message}
-          </div>
-        )}
-
-        {/* Email form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); reset(); }}
-            className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); reset(); }}
-            className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            required
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-black text-white py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900 disabled:opacity-50 transition"
-          >
-            {isEmailLoading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-gray-400 mt-5">
-          No account?{" "}
-          <a href="/sign-up" className="text-black font-medium underline underline-offset-2">
-            Sign up free
-          </a>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function GithubIcon() {
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-    </svg>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24">
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-    </svg>
+    <form onSubmit={onSubmit}>
+      <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+      <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+      {error && <p>{error.message}</p>}
+      <button disabled={isLoading}>Sign in</button>
+    </form>
   );
 }
 ```
 
----
-
-## 2. Protected Dashboard (Server Component)
+## Protected Dashboard
 
 ```tsx
 // app/dashboard/page.tsx
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
-
-const { requireAuth } = createServerHelpers(auth);
+import { requireAuth } from "@/lib/auth-server";
 
 export default async function DashboardPage() {
-  // Redirects to /sign-in if no valid session
   const user = await requireAuth();
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-500 mt-1">
-          Welcome back, {user.name ?? user.email}!
-        </p>
-      </div>
-
-      {/* Onboarding banner if still in-progress */}
-      {user.metadata?.onboardingState === "IN_PROGRESS" && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="font-medium text-amber-800">Complete your setup</p>
-            <p className="text-sm text-amber-600">Finish onboarding to unlock all features.</p>
-          </div>
-          <a
-            href="/onboarding"
-            className="text-sm bg-amber-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-700"
-          >
-            Continue →
-          </a>
-        </div>
-      )}
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: "Projects", value: "12" },
-          { label: "Team Members", value: "4" },
-          { label: "Deployments", value: "38" },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-white border rounded-xl p-6">
-            <p className="text-sm text-gray-500">{stat.label}</p>
-            <p className="text-3xl font-bold mt-1">{stat.value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+    <main>
+      <h1>Dashboard</h1>
+      <p>Signed in as {user.email}</p>
+    </main>
   );
 }
 ```
 
----
-
-## 3. User Profile Page with Edit
-
-A profile page that fetches user data server-side and allows editing the name via a Server Action:
+## OAuth Buttons
 
 ```tsx
-// app/settings/profile/page.tsx
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
-import { updateName } from "./actions";
-
-const { requireAuth } = createServerHelpers(auth);
-
-export default async function ProfilePage() {
-  const user = await requireAuth();
-
-  return (
-    <div className="max-w-lg mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
-
-      {/* Avatar */}
-      <div className="flex items-center gap-4 mb-8 p-4 bg-gray-50 rounded-xl">
-        {user.image ? (
-          <img src={user.image} alt="Avatar" className="w-14 h-14 rounded-full" />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xl font-bold">
-            {(user.name ?? user.email)[0].toUpperCase()}
-          </div>
-        )}
-        <div>
-          <p className="font-medium">{user.name ?? "No name set"}</p>
-          <p className="text-sm text-gray-500">{user.email}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Member since {new Date(user.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-
-      {/* Edit form */}
-      <form action={updateName} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Display Name</label>
-          <input
-            name="name"
-            defaultValue={user.name ?? ""}
-            className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            placeholder="Jane Smith"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
-          <input
-            type="email"
-            value={user.email}
-            disabled
-            className="w-full border rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-          />
-          <p className="text-xs text-gray-400 mt-1">Email cannot be changed at this time.</p>
-        </div>
-        <button
-          type="submit"
-          className="bg-black text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-900"
-        >
-          Save Changes
-        </button>
-      </form>
-    </div>
-  );
-}
-```
-
-```ts
-// app/settings/profile/actions.ts
-"use server";
-
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-
-const { requireAuth } = createServerHelpers(auth);
-
-export async function updateName(formData: FormData) {
-  const user = await requireAuth();
-
-  const name = (formData.get("name") as string).trim();
-  if (name.length < 2) return;
-
-  await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/user`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
-
-  revalidatePath("/settings/profile");
-  redirect("/settings/profile?saved=1");
-}
-```
-
----
-
-## 4. Sign-Out Button
-
-```tsx
-// components/auth/sign-out-button.tsx
 "use client";
 
-import { signOut } from "@bolkauth/react";
+import { useOAuth } from "@bolkauth/react";
+
+export function OAuthButtons() {
+  const { signInWithOAuth } = useOAuth();
+
+  return (
+    <div>
+      <button onClick={() => signInWithOAuth("github")}>GitHub</button>
+      <button onClick={() => signInWithOAuth("google")}>Google</button>
+    </div>
+  );
+}
+```
+
+## Sign-Out Button
+
+```tsx
+"use client";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function SignOutButton({ className }: { className?: string }) {
+export function SignOutButton() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignOut = async () => {
+  async function signOut() {
     setIsLoading(true);
-    await signOut();
+    await fetch("/api/auth/sign-out", { method: "POST" });
     router.push("/sign-in");
     router.refresh();
-  };
+  }
 
-  return (
-    <button
-      onClick={handleSignOut}
-      disabled={isLoading}
-      className={className ?? "text-sm text-red-600 hover:underline disabled:opacity-50"}
-    >
-      {isLoading ? "Signing out..." : "Sign Out"}
-    </button>
-  );
+  return <button disabled={isLoading} onClick={signOut}>Sign out</button>;
 }
 ```
 
----
-
-## 5. Protected API Route
-
-Create an API route that reads the authenticated user's session before processing:
+## Protected API Route
 
 ```ts
 // app/api/projects/route.ts
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
+import { getUser } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
-
-const { getUser } = createServerHelpers(auth);
 
 export async function GET() {
   const user = await getUser();
@@ -368,283 +125,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fetch user-specific data
-  const projects = await db.query.projects.findMany({
-    where: eq(projects.userId, user.id),
-    orderBy: desc(projects.createdAt),
-  });
-
-  return NextResponse.json({ projects });
+  return NextResponse.json({ projects: [] });
 }
-
-export async function POST(request: Request) {
-  const user = await getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await request.json();
-  const { name, description } = body;
-
-  if (!name?.trim()) {
-    return NextResponse.json({ error: "Project name is required" }, { status: 422 });
-  }
-
-  const project = await db.insert(projectsTable).values({
-    id: crypto.randomUUID(),
-    userId: user.id,
-    name: name.trim(),
-    description: description?.trim() ?? null,
-  }).returning();
-
-  return NextResponse.json({ project: project[0] }, { status: 201 });
-}
-```
-
----
-
-## 6. Full Auth Page (Sign-In + Sign-Up Toggle)
-
-A single page that switches between sign-in and sign-up forms:
-
-```tsx
-// app/auth/page.tsx
-"use client";
-
-import { useSignIn, useSignUp, useOAuth } from "@bolkauth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-export default function AuthPage() {
-  const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const { signIn, isLoading: signingIn, error: signInError, reset: resetSignIn } = useSignIn();
-  const { signUp, isLoading: signingUp, error: signUpError, reset: resetSignUp } = useSignUp();
-  const { signInWithOAuth, isLoading: oauthLoading } = useOAuth();
-
-  const isLoading = signingIn || signingUp || oauthLoading;
-  const error = mode === "signin" ? signInError : signUpError;
-
-  const handleModeSwitch = (newMode: "signin" | "signup") => {
-    setMode(newMode);
-    resetSignIn();
-    resetSignUp();
-    setEmail("");
-    setPassword("");
-    setName("");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (mode === "signin") {
-      const result = await signIn({ email, password });
-      if (!result.error) router.push("/dashboard");
-    } else {
-      const result = await signUp({ email, password, name });
-      if (!result.error) router.push("/onboarding");
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border p-8">
-        {/* Tab toggle */}
-        <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-          {(["signin", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => handleModeSwitch(m)}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                mode === m
-                  ? "bg-white shadow-sm text-black"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {m === "signin" ? "Sign In" : "Sign Up"}
-            </button>
-          ))}
-        </div>
-
-        {/* Social */}
-        <div className="space-y-2 mb-5">
-          <button
-            onClick={() => signInWithOAuth("github")}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2 border rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
-          >
-            <span>GitHub</span>
-          </button>
-          <button
-            onClick={() => signInWithOAuth("google")}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2 border rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
-          >
-            <span>Google</span>
-          </button>
-        </div>
-
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-gray-400">or</span>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-3 p-2.5 bg-red-50 border border-red-100 rounded-lg text-xs text-red-600">
-            {error.message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {mode === "signup" && (
-            <input
-              type="text"
-              placeholder="Full name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            />
-          )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); resetSignIn(); resetSignUp(); }}
-            className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); resetSignIn(); resetSignUp(); }}
-            className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            required
-            minLength={8}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-black text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
-          >
-            {isLoading
-              ? "Please wait..."
-              : mode === "signin"
-              ? "Sign In"
-              : "Create Account"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-```
-
----
-
-## 7. Auth-Aware Navigation Bar
-
-A server component nav bar that shows different UI for signed-in vs. anonymous users:
-
-```tsx
-// components/nav.tsx
-import { createServerHelpers } from "@bolkauth/nextjs";
-import { auth } from "@/lib/auth";
-
-const { getUser } = createServerHelpers(auth);
-
-export async function Nav() {
-  const user = await getUser();
-
-  return (
-    <nav className="border-b">
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        <a href="/" className="font-bold text-lg">MyApp</a>
-
-        <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              <a href="/dashboard" className="text-sm text-gray-600 hover:text-black">
-                Dashboard
-              </a>
-              <a href="/settings" className="text-sm text-gray-600 hover:text-black">
-                Settings
-              </a>
-              <div className="flex items-center gap-2">
-                {user.image ? (
-                  <img src={user.image} className="w-8 h-8 rounded-full" alt="" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                    {(user.name ?? user.email)[0].toUpperCase()}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <a href="/sign-in" className="text-sm text-gray-600 hover:text-black">
-                Sign In
-              </a>
-              <a
-                href="/sign-up"
-                className="text-sm bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-900"
-              >
-                Get Started
-              </a>
-            </>
-          )}
-        </div>
-      </div>
-    </nav>
-  );
-}
-```
-
----
-
-## 8. Conditional Page Guard (Client-Side)
-
-For pure client components that need to gate access:
-
-```tsx
-"use client";
-
-import { useAuth } from "@bolkauth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-export function withAuth<T extends object>(Component: React.ComponentType<T>) {
-  return function ProtectedComponent(props: T) {
-    const router = useRouter();
-    const { isLoaded, isSignedIn } = useAuth();
-
-    useEffect(() => {
-      if (isLoaded && !isSignedIn) {
-        router.push("/sign-in");
-      }
-    }, [isLoaded, isSignedIn, router]);
-
-    if (!isLoaded) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
-        </div>
-      );
-    }
-
-    if (!isSignedIn) return null;
-
-    return <Component {...props} />;
-  };
-}
-
-// Usage:
-// const ProtectedDashboard = withAuth(DashboardComponent);
 ```

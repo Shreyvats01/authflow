@@ -1,0 +1,124 @@
+---
+title: Quick Start
+description: Configure BolkAuth in a Next.js App Router project.
+---
+
+This guide wires the smallest useful Next.js setup: a BolkAuth engine, route handler, React provider, and middleware.
+
+## 1. Create the Auth Engine
+
+Create `lib/auth.ts`:
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle/pg";
+import { db } from "@/db";
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+  session: {
+    maxAge: 60 * 60 * 24 * 30,
+    cookieName: "bolkauth.session",
+  },
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: 8,
+  },
+});
+```
+
+Use the adapter import that matches your database. See [Adapters](/adapters) for Drizzle, Prisma, MongoDB, and custom adapter setup.
+
+## 2. Mount the Route Handler
+
+Create `app/api/auth/[...bolkauth]/route.ts`:
+
+```ts
+import { bolkAuthHandler } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const handlers = bolkAuthHandler(auth);
+
+export const GET = handlers.GET;
+export const POST = handlers.POST;
+export const PATCH = handlers.PATCH;
+export const DELETE = handlers.DELETE;
+export const OPTIONS = handlers.OPTIONS;
+```
+
+## 3. Add the React Provider
+
+Wrap your app in `app/layout.tsx`:
+
+```tsx
+import { BolkAuthProvider } from "@bolkauth/react";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <BolkAuthProvider config={{ baseURL: "/api/auth" }}>
+          {children}
+        </BolkAuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## 4. Protect Routes
+
+Create `middleware.ts` at the project root:
+
+```ts
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export default bolkAuthMiddleware(auth, {
+  signInUrl: "/sign-in",
+  onboardingUrl: "/onboarding",
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
+});
+
+export const config = {
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+};
+```
+
+## 5. Build a Sign-In Form
+
+```tsx
+"use client";
+
+import { useSignIn } from "@bolkauth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export function SignInForm() {
+  const router = useRouter();
+  const { signIn, isLoading, error, fieldErrors } = useSignIn();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+
+    const result = await signIn({ email, password });
+    if (!result.error) {
+      router.push("/dashboard");
+      router.refresh();
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+      <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
+      {fieldErrors.email && <p>{fieldErrors.email}</p>}
+      {error && <p>{error.message}</p>}
+      <button disabled={isLoading}>{isLoading ? "Signing in..." : "Sign in"}</button>
+    </form>
+  );
+}
+```

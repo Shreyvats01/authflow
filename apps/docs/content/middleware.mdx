@@ -1,0 +1,59 @@
+---
+title: Middleware
+description: Protect routes with bolkAuthMiddleware.
+---
+
+`bolkAuthMiddleware` runs before matched Next.js routes render. It checks the session cookie and redirects anonymous users to the sign-in page.
+
+## Basic Setup
+
+```ts
+import { bolkAuthMiddleware } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export default bolkAuthMiddleware(auth, {
+  signInUrl: "/sign-in",
+  onboardingUrl: "/onboarding",
+  publicRoutes: ["/", "/sign-in", "/sign-up", "/api/auth"],
+});
+
+export const config = {
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+};
+```
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `signInUrl` | `string` | `"/sign-in"` | Redirect destination when no valid session exists. |
+| `onboardingUrl` | `string` | `"/onboarding"` | Redirect destination for onboarding checks. |
+| `publicRoutes` | `string[]` | `[]` | Routes that bypass auth. Exact routes also match subpaths. |
+| `ignoredRoutes` | `string[]` | `[]` | Reserved option for compatibility. |
+| `afterSignInUrl` | `string` | Not used by middleware redirects | Reserved option for compatibility. |
+
+## Public Routes
+
+Always include the auth API route and your sign-in/sign-up pages:
+
+```ts
+publicRoutes: [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/api/auth",
+  "/api/webhooks/stripe",
+]
+```
+
+Routes containing `*`, `(.*)`, or regex-like tokens are treated as patterns.
+
+## What Middleware Checks
+
+1. If the path is public, continue immediately.
+2. Read the session cookie.
+3. Verify the JWT signature with `auth.config.secret`.
+4. Redirect to `signInUrl` when the cookie is missing or invalid.
+5. Continue when the session is valid.
+
+Middleware performs a lightweight JWT check and does not fetch the user from the database. Use `requireAuth()` in pages or actions when you need the user record.

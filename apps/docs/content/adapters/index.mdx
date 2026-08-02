@@ -1,0 +1,49 @@
+---
+title: Adapters
+description: Choose and configure a BolkAuth database adapter.
+---
+
+BolkAuth stores users, sessions, OAuth accounts, verification tokens, and metadata through a `BolkAuthAdapter`. Official adapters cover the common database stacks, and the custom adapter interface lets you integrate any storage layer.
+
+## Adapter Options
+
+| Adapter | Package | Best for |
+|---|---|---|
+| Drizzle | `@bolkauth/adapter-drizzle` | Type-safe SQL with PostgreSQL or MySQL. |
+| Prisma | `@bolkauth/adapter-prisma` | Prisma projects using PostgreSQL, MySQL, SQLite, or CockroachDB schemas. |
+| MongoDB | `@bolkauth/adapter-mongodb` | Document storage with the official MongoDB driver. |
+| Custom | Your code | Existing user models, unsupported ORMs, REST backends, or specialized storage. |
+
+## Auth Configuration
+
+Every adapter is passed to `createBolkAuth` the same way:
+
+```ts
+export const auth = createBolkAuth({
+  adapter: createYourAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+## Required Data Areas
+
+Adapters must support these records:
+
+| Record | Purpose |
+|---|---|
+| User | Email, profile fields, password hash, and email verification timestamp. |
+| Session | Server-side session record backing the signed cookie. |
+| Account | OAuth provider account linked to a user. |
+| Verification token | Magic-link and OTP verification tokens. |
+| User metadata | Onboarding and custom metadata values. |
+
+## Database Notes
+
+For serverless deployments, prefer pooled or HTTP-compatible drivers:
+
+| Database | Common deployment note |
+|---|---|
+| PostgreSQL | Use PgBouncer, Neon pooled connections, or Supabase pooling. |
+| MySQL | Use a managed pool or PlanetScale-compatible serverless driver. |
+| SQLite | Use local SQLite for embedded apps or Turso/libSQL for hosted apps. |
+| MongoDB | Reuse a singleton `MongoClient` in development and configure `maxPoolSize` in production. |

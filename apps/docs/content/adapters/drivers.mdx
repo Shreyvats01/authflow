@@ -1,0 +1,86 @@
+---
+title: Database Drivers
+description: Zero-boilerplate database driver helpers for PostgreSQL, MySQL, and MongoDB with production connection pooling defaults.
+---
+
+# Database Drivers
+
+BolkAuth provides zero-boilerplate driver helper packages (`@bolkauth/driver-pg`, `@bolkauth/driver-mysql2`, and `@bolkauth/driver-mongodb`) that handle connection pool management, production performance tuning, and schema adapter instantiation in a single call.
+
+## Available Drivers
+
+| Package | Database | Underlying Driver | Production Default |
+|---|---|---|---|
+| `@bolkauth/driver-pg` | PostgreSQL | `pg` + Drizzle ORM | Pool `max: 20`, `idleTimeout: 30s` |
+| `@bolkauth/driver-mysql2` | MySQL / MariaDB | `mysql2` + Drizzle ORM | Pool `connectionLimit: 10`, `enableKeepAlive: true` |
+| `@bolkauth/driver-mongodb` | MongoDB | `mongodb` Native Driver | Auto `autoEnsureIndexes: false` in `production` |
+
+---
+
+## PostgreSQL Driver (`@bolkauth/driver-pg`)
+
+```bash pnpm
+pnpm add @bolkauth/driver-pg @bolkauth/adapter-drizzle drizzle-orm pg
+```
+
+```typescript
+import { createPgDriver } from "@bolkauth/driver-pg";
+import { createBolkAuth } from "@bolkauth/core";
+
+const { pool, db, adapter } = createPgDriver({
+  connectionString: process.env.DATABASE_URL!,
+  max: 20, // production pool limit
+});
+
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+---
+
+## MySQL Driver (`@bolkauth/driver-mysql2`)
+
+```bash pnpm
+pnpm add @bolkauth/driver-mysql2 @bolkauth/adapter-drizzle drizzle-orm mysql2
+```
+
+```typescript
+import { createMysql2Driver } from "@bolkauth/driver-mysql2";
+import { createBolkAuth } from "@bolkauth/core";
+
+const { connection, db, adapter } = createMysql2Driver({
+  uri: process.env.MYSQL_URL!,
+  connectionLimit: 10,
+  enableKeepAlive: true,
+});
+
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+---
+
+## MongoDB Driver (`@bolkauth/driver-mongodb`)
+
+```bash pnpm
+pnpm add @bolkauth/driver-mongodb @bolkauth/adapter-mongodb mongodb
+```
+
+```typescript
+import { createMongoDriver } from "@bolkauth/driver-mongodb";
+import { createBolkAuth } from "@bolkauth/core";
+
+const { client, db, adapter } = await createMongoDriver({
+  uri: process.env.MONGODB_URI!,
+  dbName: "my_auth_db",
+});
+
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```

@@ -1,0 +1,11 @@
+{
+  "title": "Adapters",
+  "pages": [
+    "index",
+    "drizzle",
+    "prisma",
+    "mongodb",
+    "drivers",
+    "custom-adapter"
+  ]
+}

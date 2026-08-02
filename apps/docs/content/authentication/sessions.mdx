@@ -1,0 +1,92 @@
+---
+title: Sessions
+description: How BolkAuth creates, reads, verifies, and clears sessions.
+---
+
+BolkAuth uses an `HttpOnly` JWT cookie plus a database session record. The JWT contains the session ID and user ID; the adapter stores the backing session.
+
+## Session Cookie
+
+The default cookie name is:
+
+```txt
+bolkauth.session
+```
+
+Override it with:
+
+```ts
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+  session: {
+    cookieName: "myapp.session",
+    maxAge: 60 * 60 * 24 * 30,
+  },
+});
+```
+
+## Sign Out
+
+`POST /api/auth/sign-out`
+
+This deletes the database session if a valid cookie is present and clears the cookie in the browser.
+
+## Read Current Session
+
+`GET /api/auth/session`
+
+Authenticated response:
+
+```json
+{
+  "data": {
+    "session": {
+      "id": "session-id",
+      "userId": "user-id"
+    },
+    "user": {
+      "id": "user-id",
+      "email": "user@example.com"
+    }
+  }
+}
+```
+
+## Client Hooks
+
+```tsx
+"use client";
+
+import { useAuth, useSession, useUser } from "@bolkauth/react";
+
+export function AccountStatus() {
+  const auth = useAuth();
+  const session = useSession();
+  const user = useUser();
+
+  if (!auth.isLoaded) return null;
+  if (!auth.isSignedIn) return <a href="/sign-in">Sign in</a>;
+
+  return <p>Signed in as {user.user?.email}. Session: {session.session?.id}</p>;
+}
+```
+
+## Server Helpers
+
+```ts
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const { getSession, getUser, requireAuth } = createServerHelpers(auth);
+```
+
+| Helper | Behavior |
+|---|---|
+| `getSession()` | Verifies the cookie and returns `{ id, userId, token }` or `null`. |
+| `getUser()` | Reads the session and fetches the user through the adapter. |
+| `requireAuth(signInUrl?)` | Returns the user or redirects to the sign-in URL. |
+
+## Cross-Tab Refresh
+
+The React provider listens for `BroadcastChannel` messages and reloads session state after sign-in, sign-up, and OTP verification.

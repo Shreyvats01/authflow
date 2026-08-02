@@ -1,0 +1,74 @@
+---
+title: Next.js
+description: Integrate BolkAuth with the Next.js App Router.
+---
+
+`@bolkauth/nextjs` provides the App Router route handler, middleware, and server helpers.
+
+## Route Handler
+
+Create `app/api/auth/[...bolkauth]/route.ts`:
+
+```ts
+import { bolkAuthHandler } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+const handlers = bolkAuthHandler(auth);
+
+export const GET = handlers.GET;
+export const POST = handlers.POST;
+export const PATCH = handlers.PATCH;
+export const DELETE = handlers.DELETE;
+export const OPTIONS = handlers.OPTIONS;
+```
+
+The handler forwards all supported `/api/auth/*` requests to `@bolkauth/core`.
+
+## Server Helpers
+
+Create helpers once near your auth config:
+
+```ts
+import { createServerHelpers } from "@bolkauth/nextjs";
+import { auth } from "@/lib/auth";
+
+export const { getSession, getUser, requireAuth } = createServerHelpers(auth);
+```
+
+Use them in Server Components:
+
+```tsx
+import { requireAuth } from "@/lib/auth-server";
+
+export default async function DashboardPage() {
+  const user = await requireAuth();
+
+  return <h1>Welcome, {user.name ?? user.email}</h1>;
+}
+```
+
+## Helper Behavior
+
+| Helper | Returns | Use it when |
+|---|---|---|
+| `getSession()` | `{ id, userId, token } \| null` | You only need the session payload. |
+| `getUser()` | `User \| null` | You need the database user and can handle anonymous access. |
+| `requireAuth(signInUrl?)` | `User` | The page or action must be authenticated. |
+
+## Recommended File Layout
+
+```txt
+app/
+  api/
+    auth/
+      [...bolkauth]/
+        route.ts
+  dashboard/
+    page.tsx
+lib/
+  auth.ts
+  auth-server.ts
+middleware.ts
+```
+
+`lib/auth.ts` should export the `auth` engine. `lib/auth-server.ts` can export `createServerHelpers(auth)` so pages and actions import helpers from one place.

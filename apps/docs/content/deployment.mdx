@@ -1,0 +1,59 @@
+---
+title: Deployment
+description: Deploy BolkAuth with environment variables, OAuth callbacks, and database pooling.
+---
+
+Deploying BolkAuth mainly requires stable environment variables, reachable database connections, and exact OAuth callback URLs.
+
+## Environment Variables
+
+```env
+BOLKAUTH_SECRET=
+DATABASE_URL=
+NEXT_PUBLIC_APP_URL=https://yourapp.com
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+`NEXT_PUBLIC_APP_URL` should be your public origin without a trailing slash.
+
+## OAuth Callback URLs
+
+Register provider callback URLs with the `/api/auth/oauth/:provider/callback` pattern:
+
+```txt
+https://yourapp.com/api/auth/oauth/github/callback
+https://yourapp.com/api/auth/oauth/google/callback
+```
+
+The protocol, domain, and path must match exactly.
+
+## Vercel
+
+Set all environment variables in the Vercel project settings. For database connections, prefer serverless-friendly drivers or connection poolers:
+
+| Database | Recommended deployment shape |
+|---|---|
+| Neon PostgreSQL | Use the pooled connection string. |
+| Supabase PostgreSQL | Use the pooler connection string for serverless. |
+| PlanetScale MySQL | Use the serverless driver or compatible pooled access. |
+| MongoDB Atlas | Reuse a singleton `MongoClient` and set a sensible pool size. |
+
+## Migrations
+
+Run migrations before deploying code that expects new auth tables.
+
+```bash
+# Drizzle
+pnpm drizzle-kit migrate
+
+# Prisma
+npx prisma migrate deploy
+```
+
+## Static Export Note
+
+The docs app may export static files, but a production app using BolkAuth must run server-side code for route handlers, middleware, Server Actions, and database access.

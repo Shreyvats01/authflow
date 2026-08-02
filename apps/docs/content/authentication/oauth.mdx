@@ -1,0 +1,86 @@
+---
+title: OAuth
+description: Configure social OAuth providers and start provider redirects.
+---
+
+BolkAuth OAuth support starts a provider redirect from your app, validates the returned state, links or creates a user, and then issues a BolkAuth session cookie.
+
+## Configuration
+
+```ts
+export const auth = createBolkAuth({
+  adapter,
+  secret: process.env.BOLKAUTH_SECRET!,
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      scopes: ["user:email", "read:user"],
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    },
+  },
+  social: {
+    redirectUrl: "/dashboard",
+  },
+});
+```
+
+## Routes
+
+| Route | Description |
+|---|---|
+| `GET /api/auth/oauth/:provider` | Starts the provider authorization flow. |
+| `GET /api/auth/oauth/:provider/callback` | Handles the OAuth callback. |
+
+For GitHub, register this callback URL:
+
+```txt
+http://localhost:3000/api/auth/oauth/github/callback
+```
+
+For production, replace the origin with your deployed app URL.
+
+## React Hook
+
+```tsx
+"use client";
+
+import { useOAuth } from "@bolkauth/react";
+
+export function OAuthButtons() {
+  const { signInWithOAuth } = useOAuth();
+
+  return (
+    <div>
+      <button onClick={() => signInWithOAuth("github")}>Continue with GitHub</button>
+      <button onClick={() => signInWithOAuth("google")}>Continue with Google</button>
+    </div>
+  );
+}
+```
+
+## Flow
+
+```txt
+User clicks provider button
+  -> browser navigates to /api/auth/oauth/github
+  -> BolkAuth sets oauth_state cookie
+  -> provider redirects back to /api/auth/oauth/github/callback
+  -> BolkAuth verifies state
+  -> BolkAuth links or creates the user
+  -> BolkAuth sets bolkauth.session cookie
+  -> browser redirects to social.redirectUrl
+```
+
+## Troubleshooting
+
+OAuth failures are usually caused by one of these:
+
+| Issue | Fix |
+|---|---|
+| Callback mismatch | Register `/api/auth/oauth/:provider/callback` exactly in the provider dashboard. |
+| Missing credentials | Set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, or the equivalent provider variables. |
+| State mismatch | Make sure cookies are not blocked and the callback returns to the same origin. |

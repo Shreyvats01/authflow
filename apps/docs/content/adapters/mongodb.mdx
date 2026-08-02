@@ -1,0 +1,77 @@
+---
+title: MongoDB Adapter
+description: Native MongoDB database adapter for BolkAuth with atomic findOneAndUpdate queries and automatic secondary index management.
+---
+
+# MongoDB Adapter
+
+The `@bolkauth/adapter-mongodb` package provides native MongoDB integration for BolkAuth using the official `mongodb` driver. It features cached collection references, atomic `findOneAndUpdate` operations, and secondary B-Tree indexing on `userId` columns.
+
+## Installation
+
+```bash pnpm
+pnpm add @bolkauth/adapter-mongodb mongodb
+```
+
+```bash npm
+npm install @bolkauth/adapter-mongodb mongodb
+```
+
+```bash yarn
+yarn add @bolkauth/adapter-mongodb mongodb
+```
+
+## Quick Start
+
+Initialize BolkAuth with the MongoDB adapter by passing a connected `Db` instance from the official `mongodb` package:
+
+```typescript
+import { MongoClient } from "mongodb";
+import { createMongoAdapter, ensureIndexes } from "@bolkauth/adapter-mongodb";
+import { createBolkAuth } from "@bolkauth/core";
+
+const client = new MongoClient(process.env.MONGODB_URI!);
+await client.connect();
+
+const db = client.db("my_app");
+
+// Optionally ensure secondary indexes on cold-start (recommended in dev/ci)
+await ensureIndexes(db);
+
+export const auth = createBolkAuth({
+  adapter: createMongoAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+## Secondary Indexing (`ensureIndexes`)
+
+MongoDB collections performance relies on secondary B-Tree indexes for fast session lookup by token and user lookup by email/ID. 
+
+Call `ensureIndexes(db)` during app initialization:
+
+```typescript
+import { ensureIndexes } from "@bolkauth/adapter-mongodb";
+
+await ensureIndexes(db);
+```
+
+This creates the following compound & unique indexes across collections:
+- `bolkauth_users`: unique index on `email`
+- `bolkauth_sessions`: unique index on `session_token`, index on `user_id`
+- `bolkauth_accounts`: unique compound index on `{ provider, provider_account_id }`, index on `user_id`
+- `bolkauth_verification_tokens`: unique compound index on `{ identifier, token }`
+- `bolkauth_user_metadata`: index on `user_id`
+
+## Zero-Boilerplate MongoDB Driver
+
+For automatic connection pooling, environment index creation flags, and clean lifecycle management, use `@bolkauth/driver-mongodb`:
+
+```typescript
+import { createMongoDriver } from "@bolkauth/driver-mongodb";
+
+const { client, db, adapter } = await createMongoDriver({
+  uri: process.env.MONGODB_URI!,
+  dbName: "production_auth",
+});
+```

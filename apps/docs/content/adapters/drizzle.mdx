@@ -1,0 +1,100 @@
+---
+title: Drizzle
+description: Configure the Drizzle ORM adapter for PostgreSQL or MySQL.
+---
+
+Install the Drizzle adapter and Drizzle ORM:
+
+<InstallTabs packages={["@bolkauth/adapter-drizzle", "drizzle-orm"]} />
+
+Install the migration CLI as a development dependency:
+
+<InstallTabs packages="drizzle-kit" dev />
+
+## PostgreSQL
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle/pg";
+import { db } from "@/db";
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+You can also import the schema objects:
+
+```ts
+export {
+  authUsers,
+  authAccounts,
+  authSessions,
+  authVerificationTokens,
+  authUserMetadata,
+} from "@bolkauth/adapter-drizzle/pg";
+```
+
+## MySQL
+
+```ts
+import { createBolkAuth } from "@bolkauth/core";
+import { createDrizzleAdapter } from "@bolkauth/adapter-drizzle/mysql";
+import { db } from "@/db";
+
+export const auth = createBolkAuth({
+  adapter: createDrizzleAdapter(db),
+  secret: process.env.BOLKAUTH_SECRET!,
+});
+```
+
+Import the MySQL schema objects from the same subpath:
+
+```ts
+export {
+  authUsers,
+  authAccounts,
+  authSessions,
+  authVerificationTokens,
+  authUserMetadata,
+} from "@bolkauth/adapter-drizzle/mysql";
+```
+
+## Drizzle Config
+
+```ts
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./db/schema.ts",
+  out: "./db/migrations",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+Use `dialect: "mysql"` for MySQL projects.
+
+## Schema Tables
+
+The adapter exports:
+
+| Export | Table |
+|---|---|
+| `authUsers` | `bolkauth_users` |
+| `authAccounts` | `bolkauth_accounts` |
+| `authSessions` | `bolkauth_sessions` |
+| `authVerificationTokens` | `bolkauth_verification_tokens` |
+| `authUserMetadata` | `bolkauth_user_metadata` |
+
+## Migrations
+
+Generate and apply Drizzle migrations from your app:
+
+```bash
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
+```
