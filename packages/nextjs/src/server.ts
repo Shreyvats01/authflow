@@ -1,50 +1,75 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyJwt } from "@bolkauth/core";
+import { cache } from "react";
+
+// Safe wrapper for React cache() to deduplicate session/user lookups within a single render tree
+const safeCache = <T extends (...args: any[]) => any>(fn: T): T => {
+  if (typeof cache === "function") {
+    return cache(fn);
+  }
+  return fn;
+};
 
 export function createServerHelpers(authInstance: { config: { secret: string; session?: { cookieName?: string }; adapter?: any } }) {
+  const getSession = safeCache(async () => {
+    const cookieStore = await cookies();
+    const cookieName = authInstance.config.session?.cookieName ?? "bolkauth.session";
+    const jwt = cookieStore.get(cookieName)?.value || cookieStore.get("authflow.session")?.value;
+    if (!jwt) return null;
+    try {
+      const payload = (await verifyJwt(jwt, authInstance.config.secret)) as { sessionId: string; userId: string };
+      if (!payload || !payload.sessionId || !payload.userId) return null;
+      return { id: payload.sessionId, userId: payload.userId, token: jwt };
+    } catch {
+      return null;
+    }
+  });
+
+  const getUser = safeCache(async () => {
+    const session = await getSession();
+    if (!session || !authInstance.config.adapter) return null;
+    return await authInstance.config.adapter.findUserById(session.userId);
+  });
+
+  const requireAuth = async (signInUrl = "/sign-in") => {
+    const user = await getUser();
+    if (!user) redirect(signInUrl);
+    return user;
+  };
+
   return {
-    async getSession() {
-      const cookieStore = await cookies();
-      const cookieName = authInstance.config.session?.cookieName ?? "bolkauth.session";
-      const jwt = cookieStore.get(cookieName)?.value;
-      if (!jwt) return null;
-      try {
-        const payload = (await verifyJwt(jwt, authInstance.config.secret)) as { sessionId: string; userId: string };
-        if (!payload || !payload.sessionId || !payload.userId) return null;
-        return { id: payload.sessionId, userId: payload.userId, token: jwt };
-      } catch {
-        return null;
-      }
-    },
-    async getUser() {
-      const session = await this.getSession();
-      if (!session || !authInstance.config.adapter) return null;
-      return await authInstance.config.adapter.findUserById(session.userId);
-    },
-    async requireAuth(signInUrl = "/sign-in") {
-      const user = await this.getUser();
-      if (!user) redirect(signInUrl);
-      return user;
-    },
+    getSession,
+    getUser,
+    requireAuth,
   };
 }
 
-export async function getSession() {
+const defaultSecret = process.env.BOLKAUTH_SECRET || "default-dev-secret-change-in-production-min-32-chars";
+
+export const getSession = safeCache(async () => {
   const cookieStore = await cookies();
   const jwt = cookieStore.get("bolkauth.session")?.value || cookieStore.get("authflow.session")?.value;
   if (!jwt) return null;
-  return { id: "session", token: jwt, user: { id: "user" } };
-}
+  try {
+    const secret = process.env.BOLKAUTH_SECRET || defaultSecret;
+    const payload = (await verifyJwt(jwt, secret)) as { sessionId: string; userId: string };
+    if (!payload || !payload.sessionId || !payload.userId) return null;
+    return { id: payload.sessionId, userId: payload.userId, token: jwt };
+  } catch {
+    return null;
+  }
+});
 
-export async function getUser() {
+export const getUser = safeCache(async () => {
   const session = await getSession();
   if (!session) return null;
-  return session.user;
-}
+  return null;
+});
 
-export async function requireAuth() {
+export async function requireAuth(signInUrl = "/sign-in") {
   const user = await getUser();
-  if (!user) redirect("/sign-in");
+  if (!user) redirect(signInUrl);
   return user;
 }
+
