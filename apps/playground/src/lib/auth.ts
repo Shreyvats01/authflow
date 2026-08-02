@@ -9,6 +9,7 @@ export const memoryAdapter: BolkAuthAdapter = {
     const user = {
       id: `usr_${Math.random().toString(36).substring(2, 9)}`,
       email: data.email,
+      password: data.password ?? undefined,
       name: data.name ?? undefined,
       image: data.image ?? undefined,
       emailVerified: data.emailVerified ?? null,
