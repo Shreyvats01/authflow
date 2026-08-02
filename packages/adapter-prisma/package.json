@@ -3,6 +3,7 @@
   "version": "0.1.2",
   "description": "Prisma ORM adapter for BolkAuth",
   "license": "MIT",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Shreyvats01/bolkauth.git",

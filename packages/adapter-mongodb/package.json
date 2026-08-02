@@ -1,13 +1,13 @@
 {
-  "name": "@bolkauth/adapter-drizzle",
+  "name": "@bolkauth/adapter-mongodb",
   "version": "0.1.2",
-  "description": "Drizzle ORM adapter for BolkAuth",
+  "description": "MongoDB adapter for BolkAuth",
   "license": "MIT",
   "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Shreyvats01/bolkauth.git",
-    "directory": "packages/adapter-drizzle"
+    "directory": "packages/adapter-mongodb"
   },
   "publishConfig": {
     "access": "public"
@@ -20,16 +20,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
-    },
-    "./pg": {
-      "types": "./dist/pg.d.ts",
-      "import": "./dist/pg.mjs",
-      "require": "./dist/pg.js"
-    },
-    "./mysql": {
-      "types": "./dist/mysql.d.ts",
-      "import": "./dist/mysql.mjs",
-      "require": "./dist/mysql.js"
     }
   },
   "scripts": {
@@ -38,14 +28,13 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "drizzle-orm": ">=0.29.0"
+    "mongodb": "^6.0.0"
   },
   "dependencies": {
     "@bolkauth/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
-    "better-sqlite3": "^13.0.2",
+    "mongodb": "^6.3.0",
     "tsup": "^8.0.0",
     "typescript": "^5.3.3",
     "vitest": "^1.6.1"

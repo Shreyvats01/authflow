@@ -1,9 +1,16 @@
-import type { BolkAuthAdapter, User, Session, Account, VerificationToken, UserMetadata } from '@bolkauth/core';
+import type { BolkAuthAdapter } from '@bolkauth/core';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 
-// Export schema paths for reference
-export const schemaPath = path.join(__dirname, '../prisma/schema.prisma');
+// Dialect schema paths
+export const postgresqlSchemaPath = path.join(__dirname, '../prisma/postgresql.prisma');
+export const mysqlSchemaPath = path.join(__dirname, '../prisma/mysql.prisma');
+export const sqliteSchemaPath = path.join(__dirname, '../prisma/sqlite.prisma');
+
+/**
+ * @deprecated Use `postgresqlSchemaPath` instead.
+ */
+export const schemaPath = postgresqlSchemaPath;
 
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
@@ -38,6 +45,14 @@ export function createPrismaAdapter(db: any): BolkAuthAdapter {
     async findSessionByToken(token) {
       const session = await db.authSession.findUnique({
         where: { token: hashToken(token) },
+        select: {
+          id: true,
+          userId: true,
+          token: true,
+          expiresAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
       return session;
     },

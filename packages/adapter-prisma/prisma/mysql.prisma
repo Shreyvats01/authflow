@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -8,12 +8,12 @@ generator client {
 }
 
 model AuthUser {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String    @id @default(cuid()) @db.VarChar(191)
+  email         String    @unique @db.VarChar(191)
   emailVerified DateTime?
   name          String?
-  image         String?
-  password      String?
+  image         String?   @db.Text
+  password      String?   @db.Text
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -23,10 +23,10 @@ model AuthUser {
 }
 
 model AuthSession {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String   @id @default(cuid()) @db.VarChar(191)
+  userId    String   @db.VarChar(191)
   expiresAt DateTime
-  token     String   @unique
+  token     String   @unique @db.VarChar(191)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -34,12 +34,12 @@ model AuthSession {
 }
 
 model AuthAccount {
-  id                String   @id @default(cuid())
-  userId            String
-  provider          String
-  providerAccountId String
-  accessToken       String?
-  refreshToken      String?
+  id                String   @id @default(cuid()) @db.VarChar(191)
+  userId            String   @db.VarChar(191)
+  provider          String   @db.VarChar(191)
+  providerAccountId String   @db.VarChar(191)
+  accessToken       String?  @db.Text
+  refreshToken      String?  @db.Text
   expiresAt         Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -50,8 +50,8 @@ model AuthAccount {
 }
 
 model AuthVerificationToken {
-  identifier String
-  token      String
+  identifier String   @db.VarChar(191)
+  token      String   @db.VarChar(191)
   expiresAt  DateTime
   createdAt  DateTime @default(now())
 
@@ -59,9 +59,9 @@ model AuthVerificationToken {
 }
 
 model AuthUserMetadata {
-  userId    String
-  key       String
-  value     String
+  userId    String   @db.VarChar(191)
+  key       String   @db.VarChar(191)
+  value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

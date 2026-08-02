@@ -5,6 +5,7 @@ import {
   primaryKey,
   integer,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const authUsers = pgTable("bolkauth_users", {
@@ -33,20 +34,27 @@ export const authAccounts = pgTable(
     id_token: text("id_token"),
     session_state: text("session_state"),
   },
-  (account) => ({
-    compoundKey: primaryKey({
+  (account) => [
+    primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-  })
+    index("auth_accounts_user_id_idx").on(account.userId),
+  ]
 );
 
-export const authSessions = pgTable("bolkauth_sessions", {
-  sessionToken: text("session_token").primaryKey().notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { mode: "date" }).notNull(),
-});
+export const authSessions = pgTable(
+  "bolkauth_sessions",
+  {
+    sessionToken: text("session_token").primaryKey().notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
+  },
+  (session) => [
+    index("auth_sessions_user_id_idx").on(session.userId),
+  ]
+);
 
 export const authVerificationTokens = pgTable(
   "bolkauth_verification_tokens",
@@ -55,16 +63,22 @@ export const authVerificationTokens = pgTable(
     token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
-  (vt) => ({
-    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
-  })
+  (vt) => [
+    primaryKey({ columns: [vt.identifier, vt.token] }),
+  ]
 );
 
-export const authUserMetadata = pgTable("bolkauth_user_metadata", {
-  id: text("id").primaryKey().notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
-  key: text("key").notNull(),
-  value: jsonb("value").notNull(),
-});
+export const authUserMetadata = pgTable(
+  "bolkauth_user_metadata",
+  {
+    id: text("id").primaryKey().notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+  },
+  (metadata) => [
+    index("auth_user_metadata_user_id_idx").on(metadata.userId),
+  ]
+);
