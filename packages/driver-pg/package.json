@@ -1,0 +1,47 @@
+{
+  "name": "@bolkauth/driver-pg",
+  "version": "0.1.2",
+  "description": "PostgreSQL driver helper for BolkAuth wrapping pg Pool and Drizzle ORM",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/driver-pg"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.29.0",
+    "pg": "^8.0.0"
+  },
+  "dependencies": {
+    "@bolkauth/adapter-drizzle": "workspace:*",
+    "@bolkauth/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.0",
+    "drizzle-orm": "^0.29.3",
+    "pg": "^8.11.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

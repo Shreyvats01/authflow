@@ -1,0 +1,44 @@
+{
+  "name": "@bolkauth/driver-mongodb",
+  "version": "0.1.2",
+  "description": "MongoDB driver helper for BolkAuth wrapping MongoClient and @bolkauth/adapter-mongodb",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shreyvats01/bolkauth.git",
+    "directory": "packages/driver-mongodb"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "mongodb": ">=5.0.0"
+  },
+  "dependencies": {
+    "@bolkauth/adapter-mongodb": "workspace:*",
+    "@bolkauth/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "mongodb": "^6.3.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

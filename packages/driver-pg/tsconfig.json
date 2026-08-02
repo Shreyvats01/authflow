@@ -1,0 +1,11 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "paths": {
+      "@bolkauth/adapter-drizzle/pg": ["../adapter-drizzle/src/pg.ts"],
+      "@bolkauth/adapter-drizzle/mysql": ["../adapter-drizzle/src/mysql.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}
