@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuthContext } from '../provider';
 import { BolkAuthError, HookResponse } from '../types';
 
@@ -116,13 +116,16 @@ export const useOnboarding = (initialSteps = 3) => {
     }
   }, [baseURL, reload]);
 
-  return {
-    ...state,
-    isLoading,
-    error,
-    goToNextStep,
-    goToPrevStep,
-    saveStep,
-    completeOnboarding,
-  };
+  return useMemo(
+    () => ({
+      ...state,
+      isLoading,
+      error,
+      goToNextStep,
+      goToPrevStep,
+      saveStep,
+      completeOnboarding,
+    }),
+    [state, isLoading, error, goToNextStep, goToPrevStep, saveStep, completeOnboarding]
+  );
 };

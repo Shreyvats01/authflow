@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuthContext } from '../provider';
 import { BolkAuthError, HookResponse } from '../types';
 
@@ -10,7 +10,7 @@ export const useSignUp = () => {
   const [error, setError] = useState<BolkAuthError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const signUp = async (data: any): Promise<HookResponse> => {
+  const signUp = useCallback(async (data: any): Promise<HookResponse> => {
     setIsLoading(true);
     setError(null);
     setFieldErrors({});
@@ -51,7 +51,10 @@ export const useSignUp = () => {
       setError(hookError);
       return { isLoading: false, error: hookError };
     }
-  };
+  }, [baseURL, reload]);
   
-  return { signUp, isLoading, error, fieldErrors };
+  return useMemo(
+    () => ({ signUp, isLoading, error, fieldErrors }),
+    [signUp, isLoading, error, fieldErrors]
+  );
 };

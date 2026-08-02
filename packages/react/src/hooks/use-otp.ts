@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuthContext } from '../provider';
 import { BolkAuthError, HookResponse } from '../types';
 
@@ -43,7 +43,7 @@ export const useOTP = (): UseOTPReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<BolkAuthError | null>(null);
 
-  const sendCode = async (emailAddress: string): Promise<HookResponse> => {
+  const sendCode = useCallback(async (emailAddress: string): Promise<HookResponse> => {
     setIsLoading(true);
     setError(null);
 
@@ -76,9 +76,9 @@ export const useOTP = (): UseOTPReturn => {
       setIsLoading(false);
       return { isLoading: false, error: hookError };
     }
-  };
+  }, [baseURL]);
 
-  const verifyCode = async (code: string): Promise<HookResponse> => {
+  const verifyCode = useCallback(async (code: string): Promise<HookResponse> => {
     if (!email) {
       const hookError: BolkAuthError = { code: 'unknown_error', message: 'No email address set. Call sendCode() first.' };
       setError(hookError);
@@ -120,15 +120,18 @@ export const useOTP = (): UseOTPReturn => {
       setIsLoading(false);
       return { isLoading: false, error: hookError };
     }
-  };
+  }, [email, baseURL, reload]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setStep('idle');
     setEmail(null);
     setExpiresAt(null);
     setError(null);
     setIsLoading(false);
-  };
+  }, []);
 
-  return { step, email, expiresAt, sendCode, verifyCode, reset, isLoading, error };
+  return useMemo(
+    () => ({ step, email, expiresAt, sendCode, verifyCode, reset, isLoading, error }),
+    [step, email, expiresAt, sendCode, verifyCode, reset, isLoading, error]
+  );
 };

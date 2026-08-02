@@ -11,6 +11,7 @@
   "publishConfig": {
     "access": "public"
   },
+  "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -23,7 +24,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -33,7 +35,10 @@
     "@bolkauth/core": "workspace:*"
   },
   "devDependencies": {
+    "@testing-library/react": "^14.2.0",
+    "jsdom": "^24.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
   }
 }

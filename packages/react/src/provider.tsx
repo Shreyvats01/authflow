@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 
 interface AuthContextValue {
   isLoaded: boolean;
@@ -31,7 +31,7 @@ export const BolkAuthProvider = ({ children, config }: BolkAuthProviderProps) =>
     session: null,
   });
 
-  const fetchSession = async () => {
+  const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`${baseURL}/session`);
       if (res.ok) {
@@ -64,7 +64,7 @@ export const BolkAuthProvider = ({ children, config }: BolkAuthProviderProps) =>
         session: null,
       });
     }
-  };
+  }, [baseURL]);
 
   useEffect(() => {
     fetchSession();
@@ -79,10 +79,19 @@ export const BolkAuthProvider = ({ children, config }: BolkAuthProviderProps) =>
     return () => {
       channel.close();
     };
-  }, []);
+  }, [fetchSession]);
+
+  const value = useMemo(
+    () => ({
+      ...state,
+      reload: fetchSession,
+      config,
+    }),
+    [state, fetchSession, config]
+  );
 
   return (
-    <AuthContext.Provider value={{ ...state, reload: fetchSession, config }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

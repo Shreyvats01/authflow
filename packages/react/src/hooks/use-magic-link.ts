@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuthContext } from '../provider';
 import { BolkAuthError, HookResponse } from '../types';
 
@@ -9,7 +9,7 @@ export const useMagicLink = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<BolkAuthError | null>(null);
 
-  const sendMagicLink = async (email: string): Promise<HookResponse> => {
+  const sendMagicLink = useCallback(async (email: string): Promise<HookResponse> => {
     setIsLoading(true);
     setError(null);
     
@@ -43,7 +43,10 @@ export const useMagicLink = () => {
       setError(hookError);
       return { isLoading: false, error: hookError };
     }
-  };
+  }, [baseURL]);
   
-  return { sendMagicLink, isLoading, error };
+  return useMemo(
+    () => ({ sendMagicLink, isLoading, error }),
+    [sendMagicLink, isLoading, error]
+  );
 };
