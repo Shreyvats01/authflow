@@ -44,12 +44,12 @@ export const authAccounts = pgTable(
     id_token: text("id_token"),
     session_state: text("session_state"),
   },
-  (account) => [
-    primaryKey({
+  (account) => ({
+    compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-    index("auth_accounts_user_id_idx").on(account.userId),
-  ]
+    userIdIdx: index("auth_accounts_user_id_idx").on(account.userId),
+  })
 );
 
 export const authSessions = pgTable(
@@ -61,9 +61,9 @@ export const authSessions = pgTable(
       .references(() => authUsers.id, { onDelete: "cascade" }),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
-  (session) => [
-    index("auth_sessions_user_id_idx").on(session.userId),
-  ]
+  (session) => ({
+    userIdIdx: index("auth_sessions_user_id_idx").on(session.userId),
+  })
 );
 
 export const authVerificationTokens = pgTable(
@@ -73,9 +73,9 @@ export const authVerificationTokens = pgTable(
     token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
-  (vt) => [
-    primaryKey({ columns: [vt.identifier, vt.token] }),
-  ]
+  (vt) => ({
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  })
 );
 
 export const authUserMetadata = pgTable(
@@ -88,9 +88,9 @@ export const authUserMetadata = pgTable(
     key: text("key").notNull(),
     value: jsonb("value").notNull(),
   },
-  (metadata) => [
-    index("auth_user_metadata_user_id_idx").on(metadata.userId),
-  ]
+  (metadata) => ({
+    userIdIdx: index("auth_user_metadata_user_id_idx").on(metadata.userId),
+  })
 );
 
 export const pgSchema = {
