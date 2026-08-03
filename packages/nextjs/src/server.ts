@@ -5,12 +5,13 @@ import * as React from "react";
 
 // Safe wrapper for React cache() to deduplicate session/user lookups within a single render tree
 const safeCache = <T extends (...args: any[]) => any>(fn: T): T => {
-  const reactCache =
-    typeof React !== "undefined" && typeof (React as any).cache === "function"
-      ? (React as any).cache
-      : null;
-  if (reactCache) {
-    return reactCache(fn);
+  try {
+    const cacheFn = Reflect.get(React, "cache");
+    if (typeof cacheFn === "function") {
+      return cacheFn(fn);
+    }
+  } catch {
+    // Fallback if cache is not available
   }
   return fn;
 };
