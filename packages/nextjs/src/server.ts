@@ -1,12 +1,16 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyJwt } from "@bolkauth/core";
-import { cache } from "react";
+import * as React from "react";
 
 // Safe wrapper for React cache() to deduplicate session/user lookups within a single render tree
 const safeCache = <T extends (...args: any[]) => any>(fn: T): T => {
-  if (typeof cache === "function") {
-    return cache(fn);
+  const reactCache =
+    typeof React !== "undefined" && typeof (React as any).cache === "function"
+      ? (React as any).cache
+      : null;
+  if (reactCache) {
+    return reactCache(fn);
   }
   return fn;
 };
